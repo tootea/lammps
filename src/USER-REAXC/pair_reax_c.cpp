@@ -107,6 +107,7 @@ PairReaxC::PairReaxC(LAMMPS *lmp) : Pair(lmp)
   system->bndry_cuts.ghost_cutoff = 0;
   system->my_atoms = NULL;
   system->pair_ptr = this;
+  memset(&(system->reax_param), 0, sizeof(reax_interaction));
 
   fix_reax = NULL;
   tmpid = NULL;

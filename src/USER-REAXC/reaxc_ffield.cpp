@@ -72,7 +72,12 @@ char Read_Force_Field( char *ffield_file, reax_interaction *reax,
   }
 
   reax->gp.n_global = n;
-  reax->gp.l = (real*) malloc(sizeof(real)*n);
+  if (!reax->gp.l) {
+    reax->gp.l = (real*) malloc(sizeof(real)*n);
+  }
+  else {
+    memset(reax->gp.l, 0, sizeof(real)*n);
+  }
 
   /* see reax_types.h for mapping between l[i] and the lambdas used in ff */
   for (i=0; i < n; i++) {
@@ -97,57 +102,85 @@ char Read_Force_Field( char *ffield_file, reax_interaction *reax,
   fgets(s,MAX_LINE,fp);
   fgets(s,MAX_LINE,fp);
 
-  /* Allocating structures in reax_interaction */
-  reax->sbp = (single_body_parameters*)
-    scalloc( reax->num_atom_types, sizeof(single_body_parameters), "sbp",
-             comm );
-  reax->tbp = (two_body_parameters**)
-    scalloc( reax->num_atom_types, sizeof(two_body_parameters*), "tbp", comm );
-  reax->thbp= (three_body_header***)
-    scalloc( reax->num_atom_types, sizeof(three_body_header**), "thbp", comm );
-  reax->hbp = (hbond_parameters***)
-    scalloc( reax->num_atom_types, sizeof(hbond_parameters**), "hbp", comm );
-  reax->fbp = (four_body_header****)
-    scalloc( reax->num_atom_types, sizeof(four_body_header***), "fbp", comm );
   tor_flag  = (char****)
     scalloc( reax->num_atom_types, sizeof(char***), "tor_flag", comm );
-
   for( i = 0; i < reax->num_atom_types; i++ ) {
-    reax->tbp[i] = (two_body_parameters*)
-      scalloc( reax->num_atom_types, sizeof(two_body_parameters), "tbp[i]",
-               comm );
-    reax->thbp[i]= (three_body_header**)
-      scalloc( reax->num_atom_types, sizeof(three_body_header*), "thbp[i]",
-               comm );
-    reax->hbp[i] = (hbond_parameters**)
-      scalloc( reax->num_atom_types, sizeof(hbond_parameters*), "hbp[i]",
-               comm );
-    reax->fbp[i] = (four_body_header***)
-      scalloc( reax->num_atom_types, sizeof(four_body_header**), "fbp[i]",
-               comm );
     tor_flag[i]  = (char***)
       scalloc( reax->num_atom_types, sizeof(char**), "tor_flag[i]", comm );
 
     for( j = 0; j < reax->num_atom_types; j++ ) {
-      reax->thbp[i][j]= (three_body_header*)
-        scalloc( reax->num_atom_types, sizeof(three_body_header), "thbp[i,j]",
-                 comm );
-      reax->hbp[i][j] = (hbond_parameters*)
-        scalloc( reax->num_atom_types, sizeof(hbond_parameters), "hbp[i,j]",
-                 comm );
-      reax->fbp[i][j] = (four_body_header**)
-        scalloc( reax->num_atom_types, sizeof(four_body_header*), "fbp[i,j]",
-                 comm );
       tor_flag[i][j]  = (char**)
         scalloc( reax->num_atom_types, sizeof(char*), "tor_flag[i,j]", comm );
 
       for (k=0; k < reax->num_atom_types; k++) {
-        reax->fbp[i][j][k] = (four_body_header*)
-          scalloc( reax->num_atom_types, sizeof(four_body_header), "fbp[i,j,k]",
-                   comm );
         tor_flag[i][j][k]  = (char*)
           scalloc( reax->num_atom_types, sizeof(char), "tor_flag[i,j,k]",
                    comm );
+      }
+    }
+  }
+
+  if (!reax->sbp) {
+    /* Allocating structures in reax_interaction */
+    reax->sbp = (single_body_parameters*)
+      scalloc( reax->num_atom_types, sizeof(single_body_parameters), "sbp",
+	       comm );
+    reax->tbp = (two_body_parameters**)
+      scalloc( reax->num_atom_types, sizeof(two_body_parameters*), "tbp", comm );
+    reax->thbp= (three_body_header***)
+      scalloc( reax->num_atom_types, sizeof(three_body_header**), "thbp", comm );
+    reax->hbp = (hbond_parameters***)
+      scalloc( reax->num_atom_types, sizeof(hbond_parameters**), "hbp", comm );
+    reax->fbp = (four_body_header****)
+      scalloc( reax->num_atom_types, sizeof(four_body_header***), "fbp", comm );
+
+    for( i = 0; i < reax->num_atom_types; i++ ) {
+      reax->tbp[i] = (two_body_parameters*)
+        scalloc( reax->num_atom_types, sizeof(two_body_parameters), "tbp[i]",
+	         comm );
+      reax->thbp[i]= (three_body_header**)
+        scalloc( reax->num_atom_types, sizeof(three_body_header*), "thbp[i]",
+	         comm );
+      reax->hbp[i] = (hbond_parameters**)
+        scalloc( reax->num_atom_types, sizeof(hbond_parameters*), "hbp[i]",
+	         comm );
+      reax->fbp[i] = (four_body_header***)
+        scalloc( reax->num_atom_types, sizeof(four_body_header**), "fbp[i]",
+	         comm );
+
+      for( j = 0; j < reax->num_atom_types; j++ ) {
+        reax->thbp[i][j]= (three_body_header*)
+	  scalloc( reax->num_atom_types, sizeof(three_body_header), "thbp[i,j]",
+                   comm );
+        reax->hbp[i][j] = (hbond_parameters*)
+	  scalloc( reax->num_atom_types, sizeof(hbond_parameters), "hbp[i,j]",
+                   comm );
+        reax->fbp[i][j] = (four_body_header**)
+	  scalloc( reax->num_atom_types, sizeof(four_body_header*), "fbp[i,j]",
+		   comm );
+
+        for (k=0; k < reax->num_atom_types; k++) {
+	  reax->fbp[i][j][k] = (four_body_header*)
+	    scalloc( reax->num_atom_types, sizeof(four_body_header), "fbp[i,j,k]",
+		     comm );
+        }
+      }
+    }
+  }
+  else {
+    /* Arrays already allocated, clear them */
+    memset( reax->sbp, 0, reax->num_atom_types * sizeof(single_body_parameters) );
+
+    for( i = 0; i < reax->num_atom_types; i++ ) {
+      memset( reax->tbp[i], 0, reax->num_atom_types * sizeof(two_body_parameters) );
+
+      for( j = 0; j < reax->num_atom_types; j++ ) {
+        memset( reax->thbp[i][j], 0, reax->num_atom_types * sizeof(three_body_header) );
+        memset( reax->hbp[i][j], 0, reax->num_atom_types * sizeof(hbond_parameters) );
+
+        for (k=0; k < reax->num_atom_types; k++) {
+          memset( reax->fbp[i][j][k], 0, reax->num_atom_types * sizeof(four_body_header) );
+        }
       }
     }
   }
