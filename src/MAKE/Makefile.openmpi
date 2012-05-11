@@ -1,4 +1,4 @@
-# openmpi = Fedora Core 6, mpic++, OpenMPI-1.1, FFTW2
+# openmpi = Fedora 16, mpic++, OpenMPI, FFTW3
 
 SHELL = /bin/sh
 
@@ -7,13 +7,12 @@ SHELL = /bin/sh
 # specify flags and libraries needed for your compiler
 
 CC =		mpic++
-CCFLAGS =	-O2 \
-		-funroll-loops -fstrict-aliasing -Wall -W -Wno-uninitialized
+CCFLAGS =	-O2 -funroll-loops -fstrict-aliasing -Wall -W -Wno-uninitialized -Wno-unused-parameter
 SHFLAGS =	-fPIC
 DEPFLAGS =	-M
 
 LINK =		mpic++
-LINKFLAGS =	-O
+LINKFLAGS =	-O2
 LIB =           -lstdc++
 SIZE =		size
 
@@ -29,7 +28,7 @@ SHLIBFLAGS =	-shared
 # LAMMPS ifdef settings, OPTIONAL
 # see possible settings in doc/Section_start.html#2_2 (step 4)
 
-LMP_INC =	-DLAMMPS_GZIP
+LMP_INC =	-DLAMMPS_GZIP -DLAMMPS_JPEG
 
 # MPI library, REQUIRED
 # see discussion in doc/Section_start.html#2_2 (step 5)
@@ -49,9 +48,9 @@ MPI_LIB =
 # PATH = path for FFT library
 # LIB = name of FFT library
 
-FFT_INC =       -DFFT_FFTW
+FFT_INC =       -DFFT_FFTW3
 FFT_PATH = 
-FFT_LIB =	-lfftw
+FFT_LIB =	-lfftw3
 
 # JPEG and/or PNG library, OPTIONAL
 # see discussion in doc/Section_start.html#2_2 (step 7)
@@ -62,7 +61,7 @@ FFT_LIB =	-lfftw
 
 JPG_INC =       
 JPG_PATH = 	
-JPG_LIB =	
+JPG_LIB =	-ljpeg
 
 # ---------------------------------------------------------------------
 # build rules and dependencies
