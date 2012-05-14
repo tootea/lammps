@@ -1,4 +1,4 @@
-# serial_debug = RedHat Linux box, g++4, no MPI, no FFTs
+# serial_debug = RedHat Linux box, g++4, no MPI, FFTW3
 
 SHELL = /bin/sh
 
@@ -6,13 +6,13 @@ SHELL = /bin/sh
 # compiler/linker settings
 # specify flags and libraries needed for your compiler
 
-CC =		g++4
-CCFLAGS =	-O -Wall -W -O2 -funroll-loops -fstrict-aliasing
+CC =		g++
+CCFLAGS =	-O0 -g -Wall -W -fstrict-aliasing
 SHFLAGS =	-fPIC
 DEPFLAGS =	-M
 
-LINK =		g++4
-LINKFLAGS =	-O
+LINK =		g++
+LINKFLAGS =	-O0 -g
 LIB =           
 SIZE =		size
 
@@ -48,9 +48,9 @@ MPI_LIB =	-lmpi_stubs
 # PATH = path for FFT library
 # LIB = name of FFT library
 
-FFT_INC =       -DFFT_NONE
+FFT_INC =       -DFFT_FFTW3
 FFT_PATH = 
-FFT_LIB =
+FFT_LIB =	-lfftw3
 
 # JPEG and/or PNG library, OPTIONAL
 # see discussion in doc/Section_start.html#2_2 (step 7)
