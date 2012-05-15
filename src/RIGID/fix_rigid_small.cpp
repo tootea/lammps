@@ -2368,9 +2368,10 @@ void FixRigidSmall::readfile(int which, double **array, int *inbody)
     for (int i = 0; i < nchunk; i++) {
       next = strchr(buf,'\n');
       
-      values[0] = strtok(buf," \t\n\r\f");
+      char *saveptr;
+      values[0] = strtok_r(buf," \t\n\r\f",&saveptr);
       for (j = 1; j < nwords; j++)
-        values[j] = strtok(NULL," \t\n\r\f");
+        values[j] = strtok_r(NULL," \t\n\r\f",&saveptr);
 
       id = ATOTAGINT(values[0]);
       if (id <= 0 || id > maxmol) 

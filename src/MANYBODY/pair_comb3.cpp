@@ -327,8 +327,9 @@ void PairComb3::read_lib()
     // read and store at the same time
     fgets(s,maxlib,fp);
     nwords = 0;
-    words[nwords++] = strtok(s," \t\n\r\f");
-    while ((words[nwords++] = strtok(NULL," \t\n\r\f")))continue;
+    char *saveptr;
+    words[nwords++] = strtok_r(s," \t\n\r\f",&saveptr);
+    while ((words[nwords++] = strtok_r(NULL," \t\n\r\f",&saveptr)))continue;
     ccutoff[0] = atof(words[0]);
     ccutoff[1] = atof(words[1]);
     ccutoff[2] = atof(words[2]); 
@@ -338,8 +339,8 @@ void PairComb3::read_lib()
 
     fgets(s,maxlib,fp);
     nwords = 0;
-    words[nwords++] = strtok(s," \t\n\r\f");
-    while ((words[nwords++] = strtok(NULL," \t\n\r\f")))continue;
+    words[nwords++] = strtok_r(s," \t\n\r\f",&saveptr);
+    while ((words[nwords++] = strtok_r(NULL," \t\n\r\f",&saveptr)))continue;
     ch_a[0] = atof(words[0]);
     ch_a[1] = atof(words[1]);
     ch_a[2] = atof(words[2]); 
@@ -350,24 +351,24 @@ void PairComb3::read_lib()
     
     fgets(s,maxlib,fp);
     nwords = 0;
-    words[nwords++] = strtok(s," \t\n\r\f");
-    while ((words[nwords++] = strtok(NULL," \t\n\r\f")))continue;
+    words[nwords++] = strtok_r(s," \t\n\r\f",&saveptr);
+    while ((words[nwords++] = strtok_r(NULL," \t\n\r\f",&saveptr)))continue;
     nsplpcn = atoi(words[0]);
     nsplrad = atoi(words[1]);
     nspltor = atoi(words[2]);
     
     fgets(s,maxlib,fp);
     nwords = 0;
-    words[nwords++] = strtok(s," \t\n\r\f");
-    while ((words[nwords++] = strtok(NULL," \t\n\r\f")))continue;
+    words[nwords++] = strtok_r(s," \t\n\r\f",&saveptr);
+    while ((words[nwords++] = strtok_r(NULL," \t\n\r\f",&saveptr)))continue;
     maxx = atoi(words[0]);
     maxy = atoi(words[1]);
     maxz = atoi(words[2]);
     
     fgets(s,maxlib,fp);
     nwords = 0;
-    words[nwords++] = strtok(s," \t\n\r\f");
-    while ((words[nwords++] = strtok(NULL," \t\n\r\f")))continue;
+    words[nwords++] = strtok_r(s," \t\n\r\f",&saveptr);
+    while ((words[nwords++] = strtok_r(NULL," \t\n\r\f",&saveptr)))continue;
     maxxc = atoi(words[0]);
     maxyc = atoi(words[1]);
     maxconj = atoi(words[2]);
@@ -375,8 +376,8 @@ void PairComb3::read_lib()
     for (l=0; l<nsplpcn; l++) { 
       fgets(s,maxlib,fp);
       nwords = 0;
-      words[nwords++] = strtok(s," \t\n\r\f");
-      while ((words[nwords++] = strtok(NULL," \t\n\r\f")))continue;
+      words[nwords++] = strtok_r(s," \t\n\r\f",&saveptr);
+      while ((words[nwords++] = strtok_r(NULL," \t\n\r\f",&saveptr)))continue;
       maxxcn[l] = atoi(words[1]);
       vmaxxcn[l] = atof(words[2]);
       dvmaxxcn[l] = atof(words[3]);
@@ -384,15 +385,15 @@ void PairComb3::read_lib()
     
     fgets(s,maxlib,fp);
     nwords = 0;
-    words[nwords++] = strtok(s," \t\n\r\f");
-    while ((words[nwords++] = strtok(NULL," \t\n\r\f")))continue;
+    words[nwords++] = strtok_r(s," \t\n\r\f",&saveptr);
+    while ((words[nwords++] = strtok_r(NULL," \t\n\r\f",&saveptr)))continue;
     ntab = atoi(words[0]);
 
     for (i=0; i<ntab+1; i++){
       fgets(s,maxlib,fp); 
       nwords = 0;
-      words[nwords++] = strtok(s," \t\n\r\f");
-      while ((words[nwords++] = strtok(NULL," \t\n\r\f")))continue;
+      words[nwords++] = strtok_r(s," \t\n\r\f",&saveptr);
+      while ((words[nwords++] = strtok_r(NULL," \t\n\r\f",&saveptr)))continue;
       pang[i]    = atof(words[1]);
       dpang[i]   = atof(words[2]);
       ddpang[i]  = atof(words[3]);
@@ -404,8 +405,8 @@ void PairComb3::read_lib()
           for (k=0; k<maxz+1; k++) { 
             fgets(s,maxlib,fp); 
             nwords = 0;
-            words[nwords++] = strtok(s," \t\n\r\f");
-            while ((words[nwords++] = strtok(NULL," \t\n\r\f")))continue; 
+            words[nwords++] = strtok_r(s," \t\n\r\f",&saveptr);
+            while ((words[nwords++] = strtok_r(NULL," \t\n\r\f",&saveptr)))continue;
             ll = atoi(words[0])-1;
             ii = atoi(words[1]);
             jj = atoi(words[2]);
@@ -422,8 +423,8 @@ void PairComb3::read_lib()
           for (k=0; k<maxz; k++) { 
             fgets(s,maxlib,fp); 
             nwords = 0;
-            words[nwords++] = strtok(s," \t\n\r\f");
-            while ((words[nwords++] = strtok(NULL," \t\n\r\f")))continue;
+            words[nwords++] = strtok_r(s," \t\n\r\f",&saveptr);
+            while ((words[nwords++] = strtok_r(NULL," \t\n\r\f",&saveptr)))continue;
            ll = atoi(words[0])-1;
            ii = atoi(words[1]);
            jj = atoi(words[2]);
@@ -431,8 +432,8 @@ void PairComb3::read_lib()
            for(iii=0; iii<2; iii++) {
              fgets(s,maxlib,fp); 
              nwords = 0;
-             words[nwords++] = strtok(s," \t\n\r\f");
-             while ((words[nwords++] = strtok(NULL," \t\n\r\f")))continue;
+             words[nwords++] = strtok_r(s," \t\n\r\f",&saveptr);
+             while ((words[nwords++] = strtok_r(NULL," \t\n\r\f",&saveptr)))continue;
              for(m=0; m<32 ; m++) {
                mm=iii*32+m;
                pcn_cubs[ll][ii][jj][kk][mm] = atof(words[m]);
@@ -446,8 +447,8 @@ void PairComb3::read_lib()
           for (k=0; k<maxconj; k++) { 
             fgets(s,maxlib,fp); 
             nwords = 0;
-            words[nwords++] = strtok(s," \t\n\r\f");
-            while ((words[nwords++] = strtok(NULL," \t\n\r\f")))continue;
+            words[nwords++] = strtok_r(s," \t\n\r\f",&saveptr);
+            while ((words[nwords++] = strtok_r(NULL," \t\n\r\f",&saveptr)))continue;
             ll = atoi(words[0])-1;
             ii = atoi(words[1]);
             jj = atoi(words[2]);
@@ -464,8 +465,8 @@ void PairComb3::read_lib()
           for (k=0; k<maxconj-1; k++) { 
             fgets(s,maxlib,fp); 
             nwords = 0;
-            words[nwords++] = strtok(s," \t\n\r\f");
-            while ((words[nwords++] = strtok(NULL," \t\n\r\f")))continue;
+            words[nwords++] = strtok_r(s," \t\n\r\f",&saveptr);
+            while ((words[nwords++] = strtok_r(NULL," \t\n\r\f",&saveptr)))continue;
             ll = atoi(words[0])-1;
             ii = atoi(words[1]);
             jj = atoi(words[2]);
@@ -473,8 +474,8 @@ void PairComb3::read_lib()
             for (iii=0; iii<2; iii++) {
               fgets(s,maxlib,fp);
               nwords = 0;
-              words[nwords++] = strtok(s," \t\n\r\f");
-              while ((words[nwords++] = strtok(NULL," \t\n\r\f")))continue;
+              words[nwords++] = strtok_r(s," \t\n\r\f",&saveptr);
+              while ((words[nwords++] = strtok_r(NULL," \t\n\r\f",&saveptr)))continue;
               for(m=0; m<32 ; m++){
                 mm=iii*32+m;
                 rad_spl[ll][ii][jj][kk][mm] = atof(words[m]);
@@ -488,8 +489,8 @@ void PairComb3::read_lib()
           for (k=0; k<maxconj; k++) { 
             fgets(s,maxlib,fp); 
             nwords = 0;
-            words[nwords++] = strtok(s," \t\n\r\f");
-            while ((words[nwords++] = strtok(NULL," \t\n\r\f")))continue;
+            words[nwords++] = strtok_r(s," \t\n\r\f",&saveptr);
+            while ((words[nwords++] = strtok_r(NULL," \t\n\r\f",&saveptr)))continue;
             ll = atoi(words[0])-1;
             ii = atoi(words[1]);
             jj = atoi(words[2]);
@@ -506,8 +507,8 @@ void PairComb3::read_lib()
           for (k=0; k<maxconj-1; k++) { 
             fgets(s,maxlib,fp); 
             nwords = 0;
-            words[nwords++] = strtok(s," \t\n\r\f");
-            while ((words[nwords++] = strtok(NULL," \t\n\r\f")))continue;
+            words[nwords++] = strtok_r(s," \t\n\r\f",&saveptr);
+            while ((words[nwords++] = strtok_r(NULL," \t\n\r\f",&saveptr)))continue;
             ll = atoi(words[0])-1;
             ii = atoi(words[1]);
             jj = atoi(words[2]);
@@ -515,8 +516,8 @@ void PairComb3::read_lib()
             for(iii=0; iii<2; iii++) {
               fgets(s,maxlib,fp);
               nwords = 0;
-              words[nwords++] = strtok(s," \t\n\r\f");
-              while ((words[nwords++] = strtok(NULL," \t\n\r\f")))continue;
+              words[nwords++] = strtok_r(s," \t\n\r\f",&saveptr);
+              while ((words[nwords++] = strtok_r(NULL," \t\n\r\f",&saveptr)))continue;
               for (m=0; m<32 ; m++){
                 mm=iii*32+m;
                 tor_spl[ll][ii][jj][kk][mm] = atof(words[m]);
@@ -661,9 +662,10 @@ void PairComb3::read_file(char *file)
     // words = ptrs to all words in line
 
     nwords = 0;
-    words[nwords++] = strtok(line," \t\n\r\f");
+    char *saveptr;
+    words[nwords++] = strtok_r(line," \t\n\r\f",&saveptr);
     while ((nwords <= params_per_line) 
-           && (words[nwords++] = strtok(NULL," \t\n\r\f"))) {
+           && (words[nwords++] = strtok_r(NULL," \t\n\r\f",&saveptr))) {
       continue;
     }
 

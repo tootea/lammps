@@ -302,11 +302,12 @@ void Group::assign(int narg, char **arg)
 
       for (int iarg = 2; iarg < narg; iarg++) {
         if (strchr(arg[iarg],':')) {
-          ptr = strtok(arg[iarg],":"); 
+          char *saveptr;
+          ptr = strtok_r(arg[iarg],":",&saveptr);
           start = force->tnumeric(FLERR,ptr); 
-          ptr = strtok(NULL,":"); 
+          ptr = strtok_r(NULL,":",&saveptr);
           stop = force->tnumeric(FLERR,ptr); 
-          ptr = strtok(NULL,":");
+          ptr = strtok_r(NULL,":",&saveptr);
           if (ptr) delta = force->tnumeric(FLERR,ptr);
           else delta = 1;
         } else {

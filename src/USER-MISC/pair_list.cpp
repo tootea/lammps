@@ -237,7 +237,8 @@ void PairList::settings(int narg, char **arg)
   int nharm=0, nmorse=0, nlj126=0;
 
   while(fgets(line,1024,fp)) {
-    ptr = strtok(line," \t\n\r\f");
+    char *saveptr;
+    ptr = strtok_r(line," \t\n\r\f",&saveptr);
 
     // skip empty lines
     if (!ptr) continue;
@@ -247,13 +248,13 @@ void PairList::settings(int narg, char **arg)
 
     // get atom ids of pair
     id1 = ATOTAGINT(ptr);
-    ptr = strtok(NULL," \t\n\r\f");
+    ptr = strtok_r(NULL," \t\n\r\f",&saveptr);
     if (!ptr)
       error->all(FLERR,"Incorrectly formatted pair list file");
     id2 = ATOTAGINT(ptr);
 
     // get potential type
-    ptr = strtok(NULL," \t\n\r\f");
+    ptr = strtok_r(NULL," \t\n\r\f",&saveptr);
     if (!ptr)
       error->all(FLERR,"Incorrectly formatted pair list file");
 
@@ -266,12 +267,12 @@ void PairList::settings(int narg, char **arg)
     if (strcmp(ptr,stylename[HARM]) == 0) {
       style[npairs] = HARM;
 
-      ptr = strtok(NULL," \t\n\r\f");
+      ptr = strtok_r(NULL," \t\n\r\f",&saveptr);
       if ((ptr == NULL) || (*ptr == '#'))
 	error->all(FLERR,"Incorrectly formatted harmonic pair parameters");
       par.parm.harm.k = force->numeric(FLERR,ptr);
 
-      ptr = strtok(NULL," \t\n\r\f");
+      ptr = strtok_r(NULL," \t\n\r\f",&saveptr);
       if ((ptr == NULL) || (*ptr == '#'))
 	error->all(FLERR,"Incorrectly formatted harmonic pair parameters");
       par.parm.harm.r0 = force->numeric(FLERR,ptr);
@@ -282,17 +283,17 @@ void PairList::settings(int narg, char **arg)
     } else if (strcmp(ptr,stylename[MORSE]) == 0) {
       style[npairs] = MORSE;
 
-      ptr = strtok(NULL," \t\n\r\f");
+      ptr = strtok_r(NULL," \t\n\r\f",&saveptr);
       if (!ptr)
 	error->all(FLERR,"Incorrectly formatted morse pair parameters");
       par.parm.morse.d0 = force->numeric(FLERR,ptr);
 
-      ptr = strtok(NULL," \t\n\r\f");
+      ptr = strtok_r(NULL," \t\n\r\f",&saveptr);
       if (!ptr)
 	error->all(FLERR,"Incorrectly formatted morse pair parameters");
       par.parm.morse.alpha = force->numeric(FLERR,ptr);
 
-      ptr = strtok(NULL," \t\n\r\f");
+      ptr = strtok_r(NULL," \t\n\r\f",&saveptr);
       if (!ptr)
 	error->all(FLERR,"Incorrectly formatted morse pair parameters");
       par.parm.morse.r0 = force->numeric(FLERR,ptr);
@@ -303,12 +304,12 @@ void PairList::settings(int narg, char **arg)
       // 12-6 lj potential
       style[npairs] = LJ126;
 
-      ptr = strtok(NULL," \t\n\r\f");
+      ptr = strtok_r(NULL," \t\n\r\f",&saveptr);
       if (!ptr)
 	error->all(FLERR,"Incorrectly formatted 12-6 LJ pair parameters");
       par.parm.lj126.epsilon = force->numeric(FLERR,ptr);
 
-      ptr = strtok(NULL," \t\n\r\f");
+      ptr = strtok_r(NULL," \t\n\r\f",&saveptr);
       if (!ptr)
 	error->all(FLERR,"Incorrectly formatted 12-6 LJ pair parameters");
       par.parm.lj126.sigma = force->numeric(FLERR,ptr);
@@ -320,7 +321,7 @@ void PairList::settings(int narg, char **arg)
     }
 
     // optional cutoff parameter. if not specified use global value
-    ptr = strtok(NULL," \t\n\r\f");
+    ptr = strtok_r(NULL," \t\n\r\f",&saveptr);
     if ((ptr != NULL) && (*ptr != '#')) {
       double cut = force->numeric(FLERR,ptr);
       par.cutsq = cut*cut;

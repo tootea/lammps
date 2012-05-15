@@ -548,8 +548,9 @@ void PairMEAM::read_files(char *globalfile, char *userfile)
     // strip single and double quotes from words
 
     nwords = 0;
-    words[nwords++] = strtok(line,"' \t\n\r\f");
-    while ((words[nwords++] = strtok(NULL,"' \t\n\r\f"))) continue;
+    char *saveptr;
+    words[nwords++] = strtok_r(line,"' \t\n\r\f",&saveptr);
+    while ((words[nwords++] = strtok_r(NULL,"' \t\n\r\f",&saveptr))) continue;
 
     // skip if element name isn't in element list
 
@@ -681,9 +682,10 @@ void PairMEAM::read_files(char *globalfile, char *userfile)
     // words = ptrs to all words in line
 
     nparams = 0;
-    params[nparams++] = strtok(line,"=(), '\t\n\r\f");
+    char *saveptr;
+    params[nparams++] = strtok_r(line,"=(), '\t\n\r\f",&saveptr);
     while (nparams < maxparams &&
-           (params[nparams++] = strtok(NULL,"=(), '\t\n\r\f")))
+	   (params[nparams++] = strtok_r(NULL,"=(), '\t\n\r\f",&saveptr)))
       continue;
     nparams--;
 

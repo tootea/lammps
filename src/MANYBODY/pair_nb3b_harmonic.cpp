@@ -387,8 +387,9 @@ void PairNb3bHarmonic::read_file(char *file)
     // words = ptrs to all words in line
 
     nwords = 0;
-    words[nwords++] = strtok(line," \t\n\r\f");
-    while ((words[nwords++] = strtok(NULL," \t\n\r\f"))) continue;
+    char *saveptr;
+    words[nwords++] = strtok_r(line," \t\n\r\f",&saveptr);
+    while ((words[nwords++] = strtok_r(NULL," \t\n\r\f",&saveptr))) continue;
 
     // ielement,jelement,kelement = 1st args
     // if all 3 args are in element list, then parse this line

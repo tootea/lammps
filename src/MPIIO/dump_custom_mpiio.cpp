@@ -244,9 +244,10 @@ void DumpCustomMPIIO::init_style()
   // tokenize the format string and add space at end of each format element
 
   char *ptr;
+  char *saveptr;
   for (int i = 0; i < size_one; i++) {
-    if (i == 0) ptr = strtok(format," \0");
-    else ptr = strtok(NULL," \0");
+    if (i == 0) ptr = strtok_r(format," \0",&saveptr);
+    else ptr = strtok_r(NULL," \0",&saveptr);
     if (ptr == NULL) error->all(FLERR,"Dump_modify format string is too short");
     delete [] vformat[i];
     vformat[i] = new char[strlen(ptr) + 2];

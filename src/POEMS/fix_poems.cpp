@@ -915,6 +915,7 @@ void FixPOEMS::readfile(char *file)
   char *ptr;
   int nlocal = atom->nlocal;
   int i,id,nlen;
+  char *saveptr;
 
   while (1) {
     if (me == 0) nlen = readline(fp,&line,&maxline);
@@ -922,11 +923,11 @@ void FixPOEMS::readfile(char *file)
     if (nlen == 0) break;
     MPI_Bcast(line,nlen,MPI_CHAR,0,world);
 
-    ptr = strtok(line," ,\t\n\0");
+    ptr = strtok_r(line," ,\t\n\0",&saveptr);
     if (ptr == NULL || ptr[0] == '#') continue;
-    ptr = strtok(NULL," ,\t\n\0");
+    ptr = strtok_r(NULL," ,\t\n\0",&saveptr);
 
-    while ((ptr = strtok(NULL," ,\t\n\0"))) {
+    while ((ptr = strtok_r(NULL," ,\t\n\0",&saveptr))) {
       id = atoi(ptr);
       i = atom->map(id);
       if (i < 0 || i >= nlocal) continue;

@@ -207,9 +207,10 @@ void FixPropertyAtom::read_data_section(char *keyword, int n, char *buf)
   for (int i = 0; i < n; i++) {
     next = strchr(buf,'\n');
 
-    values[0] = strtok(buf," \t\n\r\f");
+    char *saveptr;
+    values[0] = strtok_r(buf," \t\n\r\f",&saveptr);
     for (j = 1; j < nwords; j++)
-      values[j] = strtok(NULL," \t\n\r\f");
+      values[j] = strtok_r(NULL," \t\n\r\f",&saveptr);
 
     itag = ATOTAGINT(values[0]);
     if (itag <= 0 || itag > map_tag_max) {

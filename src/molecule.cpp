@@ -1345,9 +1345,10 @@ int Molecule::parse(char *line, char **words, int max)
   char *ptr;
 
   int nwords = 0;
-  words[nwords++] = strtok(line," \t\n\r\f");
+  char *saveptr;
+  words[nwords++] = strtok_r(line," \t\n\r\f",&saveptr);
 
-  while ((ptr = strtok(NULL," \t\n\r\f"))) {
+  while ((ptr = strtok_r(NULL," \t\n\r\f",&saveptr))) {
     if (nwords < max) words[nwords] = ptr;
     nwords++;
   }

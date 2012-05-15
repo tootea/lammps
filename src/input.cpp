@@ -908,9 +908,10 @@ void Input::partition()
   // ptr = start of 4th word
 
   strcpy(copy,line);
-  char *ptr = strtok(copy," \t\n\r\f");
-  ptr = strtok(NULL," \t\n\r\f");
-  ptr = strtok(NULL," \t\n\r\f");
+  char *saveptr;
+  char *ptr = strtok_r(copy," \t\n\r\f",&saveptr);
+  ptr = strtok_r(NULL," \t\n\r\f",&saveptr);
+  ptr = strtok_r(NULL," \t\n\r\f",&saveptr);
   ptr += strlen(ptr) + 1;
   ptr += strspn(ptr," \t\n\r\f");
 

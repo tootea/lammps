@@ -140,10 +140,11 @@ bigint ReaderNative::read_header(double box[3][3], int &triclinic,
 
   nwords = atom->count_words(labelline);
   char **labels = new char*[nwords];
-  labels[0] = strtok(labelline," \t\n\r\f");
+  char *saveptr;
+  labels[0] = strtok_r(labelline," \t\n\r\f",&saveptr);
   if (labels[0] == NULL) return 1;
   for (int m = 1; m < nwords; m++) {
-    labels[m] = strtok(NULL," \t\n\r\f");
+    labels[m] = strtok_r(NULL," \t\n\r\f",&saveptr);
     if (labels[m] == NULL) return 1;
   }
 
@@ -285,6 +286,7 @@ void ReaderNative::read_atoms(int n, int nfield, double **fields)
 {
   int i,m;
   char *eof;
+  char *saveptr;
 
   for (i = 0; i < n; i++) {
     eof = fgets(line,MAXLINE,fp);
@@ -292,9 +294,9 @@ void ReaderNative::read_atoms(int n, int nfield, double **fields)
 
     // tokenize the line
 
-    words[0] = strtok(line," \t\n\r\f");
+    words[0] = strtok_r(line," \t\n\r\f",&saveptr);
     for (m = 1; m < nwords; m++)
-      words[m] = strtok(NULL," \t\n\r\f");
+      words[m] = strtok_r(NULL," \t\n\r\f",&saveptr);
 
     // convert selected fields to floats
 

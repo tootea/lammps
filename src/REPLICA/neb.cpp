@@ -415,9 +415,10 @@ void NEB::readfile(char *file, int flag)
     for (i = 0; i < nchunk; i++) {
       next = strchr(buf,'\n');
       
-      values[0] = strtok(buf," \t\n\r\f");
+      char *saveptr;
+      values[0] = strtok_r(buf," \t\n\r\f",&saveptr);
       for (j = 1; j < nwords; j++)
-        values[j] = strtok(NULL," \t\n\r\f");
+        values[j] = strtok_r(NULL," \t\n\r\f",&saveptr);
       
       // adjust atom coord based on replica fraction
       // for flag = 0, interpolate for intermediate and final replicas

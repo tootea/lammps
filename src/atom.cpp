@@ -654,12 +654,13 @@ int Atom::count_words(const char *line)
   char *ptr;
   if ((ptr = strchr(copy,'#'))) *ptr = '\0';
 
-  if (strtok(copy," \t\n\r\f") == NULL) {
+  char *saveptr;
+  if (strtok_r(copy," \t\n\r\f",&saveptr) == NULL) {
     memory->destroy(copy);
     return 0;
   }
   n = 1;
-  while (strtok(NULL," \t\n\r\f")) n++;
+  while (strtok_r(NULL," \t\n\r\f",&saveptr)) n++;
 
   memory->destroy(copy);
   return n;
@@ -801,13 +802,14 @@ void Atom::data_atoms(int n, char *buf)
   for (int i = 0; i < n; i++) {
     next = strchr(buf,'\n');
 
-    values[0] = strtok(buf," \t\n\r\f");
+    char *saveptr;
+    values[0] = strtok_r(buf," \t\n\r\f",&saveptr);
     if (values[0] == NULL)
       error->all(FLERR,"Incorrect atom format in data file");
     for (m = 1; m < nwords; m++) {
-      values[m] = strtok(NULL," \t\n\r\f");
+      values[m] = strtok_r(NULL," \t\n\r\f",&saveptr);
       if (values[m] == NULL)
-        error->all(FLERR,"Incorrect atom format in data file");
+	error->all(FLERR,"Incorrect atom format in data file");
     }
 
     if (imageflag)
@@ -866,9 +868,10 @@ void Atom::data_vels(int n, char *buf)
   for (int i = 0; i < n; i++) {
     next = strchr(buf,'\n');
 
-    values[0] = strtok(buf," \t\n\r\f");
+    char *saveptr;
+    values[0] = strtok_r(buf," \t\n\r\f",&saveptr);
     for (j = 1; j < nwords; j++)
-      values[j] = strtok(NULL," \t\n\r\f");
+      values[j] = strtok_r(NULL," \t\n\r\f",&saveptr);
 
     tagdata = ATOTAGINT(values[0]);
     if (tagdata <= 0 || tagdata > map_tag_max)
@@ -1172,9 +1175,10 @@ void Atom::data_bonus(int n, char *buf, AtomVec *avec_bonus)
   for (int i = 0; i < n; i++) {
     next = strchr(buf,'\n');
 
-    values[0] = strtok(buf," \t\n\r\f");
+    char *saveptr;
+    values[0] = strtok_r(buf," \t\n\r\f",&saveptr);
     for (j = 1; j < nwords; j++)
-      values[j] = strtok(NULL," \t\n\r\f");
+      values[j] = strtok_r(NULL," \t\n\r\f",&saveptr);
 
     tagdata = ATOTAGINT(values[0]);
     if (tagdata <= 0 || tagdata > map_tag_max)
@@ -1208,16 +1212,17 @@ void Atom::data_bodies(int n, char *buf, AtomVecBody *avec_body)
   // tokenize the lines into ivalues and dvalues
   // if I own atom tag, unpack its values
 
+  char *saveptr;
   for (int i = 0; i < n; i++) {
-    if (i == 0) tagdata = ATOTAGINT(strtok(buf," \t\n\r\f"));
-    else tagdata = ATOTAGINT(strtok(NULL," \t\n\r\f"));
-    ninteger = atoi(strtok(NULL," \t\n\r\f"));
-    ndouble = atoi(strtok(NULL," \t\n\r\f"));
+    if (i == 0) tagdata = ATOTAGINT(strtok_r(buf," \t\n\r\f",&saveptr));
+    else tagdata = ATOTAGINT(strtok_r(NULL," \t\n\r\f",&saveptr));
+    ninteger = atoi(strtok_r(NULL," \t\n\r\f",&saveptr));
+    ndouble = atoi(strtok_r(NULL," \t\n\r\f",&saveptr));
 
     for (j = 0; j < ninteger; j++)
-      ivalues[j] = strtok(NULL," \t\n\r\f");
+      ivalues[j] = strtok_r(NULL," \t\n\r\f",&saveptr);
     for (j = 0; j < ndouble; j++)
-      dvalues[j] = strtok(NULL," \t\n\r\f");
+      dvalues[j] = strtok_r(NULL," \t\n\r\f",&saveptr);
 
     if (tagdata <= 0 || tagdata > map_tag_max)
       error->one(FLERR,"Invalid atom ID in Bodies section of data file");

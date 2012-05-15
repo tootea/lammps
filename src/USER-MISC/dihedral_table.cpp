@@ -1027,7 +1027,8 @@ void DihedralTable::read_table(Table *tb, char *file, char *keyword)
     }
     if (strspn(line," \t\n\r") == strlen(line)) continue;  // blank line
     if (line[0] == '#') continue;                          // comment
-    char *word = strtok(line," \t\n\r");
+    char *saveptr;
+    char *word = strtok_r(line," \t\n\r",&saveptr);
     if (strcmp(word,keyword) == 0) break;           // matching keyword
     fgets(line,MAXLINE,fp);                         // no match, skip section
     param_extract(tb,line);
@@ -1261,10 +1262,11 @@ void DihedralTable::param_extract(Table *tb, char *line)
   tb->f_unspecified = false; //default
   tb->use_degrees   = true;  //default
 
-  char *word = strtok(line," \t\n\r\f");
+  char *saveptr;
+  char *word = strtok_r(line," \t\n\r\f",&saveptr);
   while (word) {
     if (strcmp(word,"N") == 0) {
-      word = strtok(NULL," \t\n\r\f");
+      word = strtok_r(NULL," \t\n\r\f",&saveptr);
       tb->ninput = atoi(word);
     }
     else if (strcmp(word,"NOF") == 0) {
@@ -1277,20 +1279,20 @@ void DihedralTable::param_extract(Table *tb, char *line)
       tb->use_degrees = false;
     }
     else if (strcmp(word,"CHECKU") == 0) {
-      word = strtok(NULL," \t\n\r\f");
+      word = strtok_r(NULL," \t\n\r\f",&saveptr);
       memory->sfree(checkU_fname);
       memory->create(checkU_fname,strlen(word),"dihedral_table:checkU");
       strcpy(checkU_fname, word);
     }
     else if (strcmp(word,"CHECKF") == 0) {
-      word = strtok(NULL," \t\n\r\f");
+      word = strtok_r(NULL," \t\n\r\f",&saveptr);
       memory->sfree(checkF_fname);
       memory->create(checkF_fname,strlen(word),"dihedral_table:checkF");
       strcpy(checkF_fname, word);
     }
     // COMMENTING OUT:  equilibrium angles are not supported
     //else if (strcmp(word,"EQ") == 0) {
-    //  word = strtok(NULL," \t\n\r\f");
+    //  word = strtok_r(NULL," \t\n\r\f",&saveptr);
     //  tb->theta0 = atof(word);
     //}
     else {
@@ -1298,7 +1300,7 @@ void DihedralTable::param_extract(Table *tb, char *line)
       err_msg += string(" (") + string(word) + string(")");
       error->one(FLERR,err_msg.c_str());
     }
-    word = strtok(NULL," \t\n\r\f");
+    word = strtok_r(NULL," \t\n\r\f",&saveptr);
   }
 
   if (tb->ninput == 0)

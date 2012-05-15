@@ -471,12 +471,13 @@ void PairCDEAM::read_h_coeff(char *filename)
                 while(fgets(nextline, MAXLINE, fp) != NULL) {
                         strcpy(line, nextline);
                 }
-                char* ptr = strtok(line, " \t\n\r\f");
+		char *saveptr;
+                char* ptr = strtok_r(line, " \t\n\r\f",&saveptr);
                 int degree = atoi(ptr);
                 nhcoeff = degree+1;
                 hcoeff = new double[nhcoeff];
                 int i = 0;
-                while((ptr = strtok(NULL," \t\n\r\f")) != NULL && i < nhcoeff) {
+                while((ptr = strtok_r(NULL," \t\n\r\f",&saveptr)) != NULL && i < nhcoeff) {
                         hcoeff[i++] = atof(ptr);
                 }
                 if(i != nhcoeff || nhcoeff < 1)

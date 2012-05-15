@@ -569,10 +569,11 @@ void FixPhonon::readmap()
 
   if (fgets(line,MAXLINE,fp) == NULL) 
     error->all(FLERR,"Error while reading header of mapping file!");
-  nx     = force->inumeric(FLERR, strtok(line, " \n\t\r\f"));
-  ny     = force->inumeric(FLERR, strtok(NULL, " \n\t\r\f"));
-  nz     = force->inumeric(FLERR, strtok(NULL, " \n\t\r\f"));
-  nucell = force->inumeric(FLERR, strtok(NULL, " \n\t\r\f"));
+  char *saveptr;
+  nx     = force->inumeric(FLERR, strtok_r(line, " \n\t\r\f",&saveptr));
+  ny     = force->inumeric(FLERR, strtok_r(NULL, " \n\t\r\f",&saveptr));
+  nz     = force->inumeric(FLERR, strtok_r(NULL, " \n\t\r\f",&saveptr));
+  nucell = force->inumeric(FLERR, strtok_r(NULL, " \n\t\r\f",&saveptr));
   ntotal = nx*ny*nz;
   if (ntotal*nucell != ngroup) 
     error->all(FLERR,"FFT mesh and number of atoms in group mismatch!");
@@ -585,11 +586,11 @@ void FixPhonon::readmap()
   // the remaining lines carry the mapping info
   for (int i = 0; i < ngroup; ++i){
     if (fgets(line,MAXLINE,fp) == NULL) {info = 1; break;} 
-    ix   = force->inumeric(FLERR, strtok(line, " \n\t\r\f"));
-    iy   = force->inumeric(FLERR, strtok(NULL, " \n\t\r\f"));
-    iz   = force->inumeric(FLERR, strtok(NULL, " \n\t\r\f"));
-    iu   = force->inumeric(FLERR, strtok(NULL, " \n\t\r\f"));
-    itag = force->inumeric(FLERR, strtok(NULL, " \n\t\r\f"));
+    ix   = force->inumeric(FLERR, strtok_r(line, " \n\t\r\f",&saveptr));
+    iy   = force->inumeric(FLERR, strtok_r(NULL, " \n\t\r\f",&saveptr));
+    iz   = force->inumeric(FLERR, strtok_r(NULL, " \n\t\r\f",&saveptr));
+    iu   = force->inumeric(FLERR, strtok_r(NULL, " \n\t\r\f",&saveptr));
+    itag = force->inumeric(FLERR, strtok_r(NULL, " \n\t\r\f",&saveptr));
 
     // check if index is in correct range
     if (ix < 0 || ix >= nx || iy < 0 || iy >= ny || 

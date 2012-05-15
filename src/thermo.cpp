@@ -649,7 +649,8 @@ void Thermo::parse_fields(char *str)
 
   // customize a new keyword by adding to if statement
 
-  char *word = strtok(str," \0");
+  char *saveptr;
+  char *word = strtok_r(str," \0",&saveptr);
   while (word) {
 
     if (strcmp(word,"step") == 0) {
@@ -913,7 +914,7 @@ void Thermo::parse_fields(char *str)
 
     } else error->all(FLERR,"Invalid keyword in thermo_style custom command");
 
-    word = strtok(NULL," \0");
+    word = strtok_r(NULL," \0",&saveptr);
   }
 }
 

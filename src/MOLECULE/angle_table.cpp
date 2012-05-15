@@ -380,7 +380,8 @@ void AngleTable::read_table(Table *tb, char *file, char *keyword)
       error->one(FLERR,"Did not find keyword in table file");
     if (strspn(line," \t\n") == strlen(line)) continue;    // blank line
     if (line[0] == '#') continue;                          // comment
-    char *word = strtok(line," \t\n\r");
+    char *saveptr;
+    char *word = strtok_r(line," \t\n\r",&saveptr);
     if (strcmp(word,keyword) == 0) break;           // matching keyword
     fgets(line,MAXLINE,fp);                         // no match, skip section
     param_extract(tb,line);
@@ -492,26 +493,27 @@ void AngleTable::param_extract(Table *tb, char *line)
   tb->fpflag = 0;
   tb->theta0 = 180.0;
 
-  char *word = strtok(line," \t\n\r\f");
+  char *saveptr;
+  char *word = strtok_r(line," \t\n\r\f",&saveptr);
   while (word) {
     if (strcmp(word,"N") == 0) {
-      word = strtok(NULL," \t\n\r\f");
+      word = strtok_r(NULL," \t\n\r\f",&saveptr);
       tb->ninput = atoi(word);
     } else if (strcmp(word,"FP") == 0) {
       tb->fpflag = 1;
-      word = strtok(NULL," \t\n\r\f");
+      word = strtok_r(NULL," \t\n\r\f",&saveptr);
       tb->fplo = atof(word);
-      word = strtok(NULL," \t\n\r\f");
+      word = strtok_r(NULL," \t\n\r\f",&saveptr);
       tb->fphi = atof(word);
       tb->fplo *= (180.0/MY_PI)*(180.0/MY_PI);
       tb->fphi *= (180.0/MY_PI)*(180.0/MY_PI);
     } else if (strcmp(word,"EQ") == 0) {
-      word = strtok(NULL," \t\n\r\f");
+      word = strtok_r(NULL," \t\n\r\f",&saveptr);
       tb->theta0 = atof(word);
     } else {
       error->one(FLERR,"Invalid keyword in angle table parameters");
     }
-    word = strtok(NULL," \t\n\r\f");
+    word = strtok_r(NULL," \t\n\r\f",&saveptr);
   }
 
   if (tb->ninput == 0) error->one(FLERR,"Angle table parameters did not set N");
