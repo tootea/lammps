@@ -39,29 +39,27 @@
 #include "reaxc_valence_angles.h"
 #include "reaxc_vector.h"
 
-interaction_function Interaction_Functions[NUM_INTRS];
-
 void Dummy_Interaction( reax_system *system, control_params *control,
-                        simulation_data *data, storage *workspace,
-                        reax_list **lists, output_controls *out_control )
+			simulation_data *data, storage *workspace,
+			reax_list **lists, output_controls *out_control )
 {
 }
 
 
 void Init_Force_Functions( control_params *control )
 {
-  Interaction_Functions[0] = BO;
-  Interaction_Functions[1] = Bonds; //Dummy_Interaction;
-  Interaction_Functions[2] = Atom_Energy; //Dummy_Interaction;
-  Interaction_Functions[3] = Valence_Angles; //Dummy_Interaction;
-  Interaction_Functions[4] = Torsion_Angles; //Dummy_Interaction;
+  control->Interaction_Functions[0] = BO;
+  control->Interaction_Functions[1] = Bonds; //Dummy_Interaction;
+  control->Interaction_Functions[2] = Atom_Energy; //Dummy_Interaction;
+  control->Interaction_Functions[3] = Valence_Angles; //Dummy_Interaction;
+  control->Interaction_Functions[4] = Torsion_Angles; //Dummy_Interaction;
   if( control->hbond_cut > 0 )
-    Interaction_Functions[5] = Hydrogen_Bonds;
-  else Interaction_Functions[5] = Dummy_Interaction;
-  Interaction_Functions[6] = Dummy_Interaction; //empty
-  Interaction_Functions[7] = Dummy_Interaction; //empty
-  Interaction_Functions[8] = Dummy_Interaction; //empty
-  Interaction_Functions[9] = Dummy_Interaction; //empty
+    control->Interaction_Functions[5] = Hydrogen_Bonds;
+  else control->Interaction_Functions[5] = Dummy_Interaction;
+  control->Interaction_Functions[6] = Dummy_Interaction; //empty
+  control->Interaction_Functions[7] = Dummy_Interaction; //empty
+  control->Interaction_Functions[8] = Dummy_Interaction; //empty
+  control->Interaction_Functions[9] = Dummy_Interaction; //empty
 }
 
 
@@ -74,8 +72,8 @@ void Compute_Bonded_Forces( reax_system *system, control_params *control,
 
   /* Implement all force calls as function pointers */
   for( i = 0; i < NUM_INTRS; i++ ) {
-    (Interaction_Functions[i])( system, control, data, workspace,
-                                lists, out_control );
+    (control->Interaction_Functions[i])( system, control, data, workspace,
+				lists, out_control );
   }
 }
 

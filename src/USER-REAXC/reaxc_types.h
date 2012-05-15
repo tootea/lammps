@@ -37,6 +37,7 @@
 #include "string.h"
 #include "sys/time.h"
 #include "time.h"
+#include "reaxc_defs.h"
 
 /************* SOME DEFS - crucial for reax_types.h *********/
 
@@ -406,74 +407,6 @@ typedef _reax_system reax_system;
 
 
 
-/* system control parameters */
-typedef struct
-{
-  char sim_name[REAX_MAX_STR];
-  int  nprocs;
-  ivec procs_by_dim;
-  /* ensemble values:
-     0 : NVE
-     1 : bNVT (Berendsen)
-     2 : nhNVT (Nose-Hoover)
-     3 : sNPT (Parrinello-Rehman-Nose-Hoover) semiisotropic
-     4 : iNPT (Parrinello-Rehman-Nose-Hoover) isotropic
-     5 : NPT  (Parrinello-Rehman-Nose-Hoover) Anisotropic*/
-  int  ensemble;
-  int  nsteps;
-  real dt;
-  int  geo_format;
-  int  restart;
-
-  int  restrict_bonds;
-  int  remove_CoM_vel;
-  int  random_vel;
-  int  reposition_atoms;
-
-  int  reneighbor;
-  real vlist_cut;
-  real bond_cut;
-  real nonb_cut, nonb_low;
-  real hbond_cut;
-  real user_ghost_cut;
-
-  real bg_cut;
-  real bo_cut;
-  real thb_cut;
-  real thb_cutsq;
-
-  int tabulate;
-
-  int qeq_freq;
-  real q_err;
-  int refactor;
-  real droptol;
-
-  real T_init, T_final, T;
-  real Tau_T;
-  int  T_mode;
-  real T_rate, T_freq;
-
-  int  virial;
-  rvec P, Tau_P, Tau_PT;
-  int  press_mode;
-  real compressibility;
-
-  int  molecular_analysis;
-  int  num_ignored;
-  int  ignore[REAX_MAX_ATOM_TYPES];
-
-  int  dipole_anal;
-  int  freq_dipole_anal;
-  int  diffusion_coef;
-  int  freq_diffusion_coef;
-  int  restrict_type;
-
-  int lgflag;
-
-} control_params;
-
-
 typedef struct
 {
   real T;
@@ -831,14 +764,83 @@ typedef struct
 } LR_lookup_table;
 extern LR_lookup_table **LR;
 
+/* needs to be before control_params due to cyclic dependency */
+typedef void (*interaction_function) (reax_system*, struct control_params_t*,
+                                      simulation_data*, storage*,
+                                      reax_list**, output_controls*);
+
+/* system control parameters */
+typedef struct control_params_t
+{
+  char sim_name[REAX_MAX_STR];
+  int  nprocs;
+  ivec procs_by_dim;
+  /* ensemble values:
+     0 : NVE
+     1 : bNVT (Berendsen)
+     2 : nhNVT (Nose-Hoover)
+     3 : sNPT (Parrinello-Rehman-Nose-Hoover) semiisotropic
+     4 : iNPT (Parrinello-Rehman-Nose-Hoover) isotropic
+     5 : NPT  (Parrinello-Rehman-Nose-Hoover) Anisotropic*/
+  int  ensemble;
+  int  nsteps;
+  real dt;
+  int  geo_format;
+  int  restart;
+
+  int  restrict_bonds;
+  int  remove_CoM_vel;
+  int  random_vel;
+  int  reposition_atoms;
+
+  int  reneighbor;
+  real vlist_cut;
+  real bond_cut;
+  real nonb_cut, nonb_low;
+  real hbond_cut;
+  real user_ghost_cut;
+
+  real bg_cut;
+  real bo_cut;
+  real thb_cut;
+  real thb_cutsq;
+
+  int tabulate;
+
+  int qeq_freq;
+  real q_err;
+  int refactor;
+  real droptol;
+
+  real T_init, T_final, T;
+  real Tau_T;
+  int  T_mode;
+  real T_rate, T_freq;
+
+  int  virial;
+  rvec P, Tau_P, Tau_PT;
+  int  press_mode;
+  real compressibility;
+
+  int  molecular_analysis;
+  int  num_ignored;
+  int  ignore[REAX_MAX_ATOM_TYPES];
+
+  int  dipole_anal;
+  int  freq_dipole_anal;
+  int  diffusion_coef;
+  int  freq_diffusion_coef;
+  int  restrict_type;
+
+  int lgflag;
+
+  interaction_function Interaction_Functions[NUM_INTRS];
+} control_params;
+
 /* function pointer defs */
 typedef void (*evolve_function)(reax_system*, control_params*,
                                 simulation_data*, storage*, reax_list**,
                                 output_controls*, mpi_datatypes* );
-
-typedef void (*interaction_function) (reax_system*, control_params*,
-                                      simulation_data*, storage*,
-                                      reax_list**, output_controls*);
 
 typedef void (*print_interaction)(reax_system*, control_params*,
                                   simulation_data*, storage*,
