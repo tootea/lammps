@@ -74,7 +74,7 @@ help:
 # Build the code
 
 .DEFAULT:
-	@test -f MAKE/Makefile.$@
+	@+test -f MAKE/Makefile.$@
 	@if [ ! -d Obj_$@ ]; then mkdir Obj_$@; fi
 	@$(SHELL) Make.sh style
 	@cp MAKE/Makefile.$@ Obj_$@/Makefile
