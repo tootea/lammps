@@ -108,6 +108,7 @@ int MPI_Comm_size(MPI_Comm comm, int *nprocs)
 
 /* ---------------------------------------------------------------------- */
 
+int MPI_Abort(MPI_Comm comm, int errorcode) __attribute__((weak));
 int MPI_Abort(MPI_Comm comm, int errorcode)
 {
   exit(1);
