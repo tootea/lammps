@@ -322,10 +322,7 @@ char Read_Force_Field( char *ffield_file, reax_interaction *reax,
 
   /* Equate vval3 to valf for first-row elements (25/10/2004) */
   for( i = 0; i < reax->num_atom_types; i++ )
-    if( reax->sbp[i].mass < 21 &&
-        reax->sbp[i].valency_val != reax->sbp[i].valency_boc ){
-      fprintf( stderr, "Warning: changed valency_val to valency_boc for %s\n",
-               reax->sbp[i].name );
+    if( reax->sbp[i].mass < 21 ){
       reax->sbp[i].valency_val = reax->sbp[i].valency_boc;
     }
 
