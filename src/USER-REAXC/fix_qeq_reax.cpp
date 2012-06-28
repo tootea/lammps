@@ -85,6 +85,7 @@ FixQEqReax::FixQEqReax(LAMMPS *lmp, int narg, char **arg) :
   s = NULL;
   t = NULL;
   nprev = 5;
+  total_charge = 0.0;
 
   Hdia_inv = NULL;
   b_s = NULL;
@@ -324,6 +325,7 @@ void FixQEqReax::reallocate_matrix()
 
 void FixQEqReax::init()
 {
+  int i;
   if (!atom->q_flag) error->all(FLERR,"Fix qeq/reax requires atom attribute q");
 
   ngroup = group->count(igroup);
@@ -335,6 +337,11 @@ void FixQEqReax::init()
       error->all(FLERR,"Fix qeq/reax group and pair reax/c have "
 		       "different numbers of atoms");
   */
+
+  total_charge = 0;
+  for (i = 0; i < atom->natoms; i++) {
+    total_charge += atom->q[i];
+  }
 
   // need a half neighbor list w/ Newton off and ghost neighbors
   // built whenever re-neighboring occurs
@@ -781,7 +788,7 @@ void FixQEqReax::calculate_Q()
 
   s_sum = parallel_vector_acc( s, nn );
   t_sum = parallel_vector_acc( t, nn);
-  u = s_sum / t_sum;
+  u = (s_sum - total_charge) / t_sum;
 
   for( ii = 0; ii < nn; ++ii ) {
     i = ilist[ii];

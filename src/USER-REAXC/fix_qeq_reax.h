@@ -72,6 +72,8 @@ class FixQEqReax : public Fix {
 
   bigint ngroup;
 
+  double total_charge;
+
   // fictitious charges
 
   double *s, *t;
