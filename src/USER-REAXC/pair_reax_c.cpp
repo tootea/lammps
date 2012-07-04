@@ -109,6 +109,9 @@ PairReaxC::PairReaxC(LAMMPS *lmp) : Pair(lmp)
   system->pair_ptr = this;
   memset(&(system->reax_param), 0, sizeof(reax_interaction));
 
+  for( int i = 0; i < LIST_N; ++i )
+    lists[i].allocated = 0;
+
   fix_reax = NULL;
   tmpid = NULL;
   tmpbo = NULL;
@@ -364,9 +367,6 @@ void PairReaxC::init_style( )
   neighbor->requests[irequest]->ghost = 1;
 
   cutmax = MAX3(control->nonb_cut, control->hbond_cut, 2*control->bond_cut);
-
-  for( int i = 0; i < LIST_N; ++i )
-    lists[i].allocated = 0;
 
   if (fix_reax == NULL) {
     char **fixarg = new char*[3];
