@@ -71,8 +71,9 @@ void DeAllocate_System( reax_system *system )
   int ntypes;
   reax_interaction *ff_params;
 
-  // dealloocate the atom list
-  sfree( system->my_atoms, "system->my_atoms" );
+  // deallocate the atom list
+  if( system->my_atoms )
+    sfree( system->my_atoms, "system->my_atoms" );
 
   // deallocate the ffield parameters storage
   ff_params = &(system->reax_param);
