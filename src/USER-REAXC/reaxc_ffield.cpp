@@ -41,13 +41,15 @@ char Read_Force_Field( char *ffield_file, reax_interaction *reax,
   int errorflag = 1;
   real     val;
   MPI_Comm comm;
+  int error_code = 0;
 
   comm = MPI_COMM_WORLD;
 
   /* open force field file */
   if ( (fp = fopen( ffield_file, "r" ) ) == NULL ) {
     fprintf( stderr, "error opening the force field file! terminating...\n" );
-    MPI_Abort( comm, FILE_NOT_FOUND );
+    error_code = FILE_NOT_FOUND;
+    goto end;
   }
 
   s = (char*) malloc(sizeof(char)*MAX_LINE);
@@ -67,8 +69,7 @@ char Read_Force_Field( char *ffield_file, reax_interaction *reax,
   n = atoi(tmp[0]);
   if (n < 1) {
     fprintf( stderr, "WARNING: number of globals in ffield file is 0!\n" );
-    fclose(fp);
-    return 1;
+    goto cleanup_tmp;
   }
 
   reax->gp.n_global = n;
@@ -239,7 +240,8 @@ char Read_Force_Field( char *ffield_file, reax_interaction *reax,
     /* Sanity check */
     if (c < 3) {
       fprintf(stderr, "Inconsistent ffield file (reaxc_ffield.cpp) \n");
-      MPI_Abort( comm, FILE_NOT_FOUND );
+      error_code = FILE_NOT_FOUND;
+      goto cleanup_tor_flag;
     }
 
     val = atof(tmp[0]); reax->sbp[i].p_ovun2    = val;
@@ -259,7 +261,8 @@ char Read_Force_Field( char *ffield_file, reax_interaction *reax,
       /* Sanity check */
       if (c > 3) {
         fprintf(stderr, "Inconsistent ffield file (reaxc_ffield.cpp) \n");
-        MPI_Abort( comm, FILE_NOT_FOUND );
+        error_code = FILE_NOT_FOUND;
+        goto cleanup_tor_flag;
       }
 
       val = atof(tmp[0]); reax->sbp[i].lgcij           = val;
@@ -315,7 +318,8 @@ char Read_Force_Field( char *ffield_file, reax_interaction *reax,
         fprintf( stderr, "Error: inconsistent vdWaals-parameters\n"\
                  "No shielding or inner-wall set for element %s\n",
                  reax->sbp[i].name );
-        MPI_Abort( comm, INVALID_INPUT );
+        error_code = INVALID_INPUT;
+        goto cleanup_tor_flag;
       }
     }
   }
@@ -703,13 +707,7 @@ char Read_Force_Field( char *ffield_file, reax_interaction *reax,
     }
   }
 
-  /* deallocate helper storage */
-  for( i = 0; i < MAX_TOKENS; i++ )
-    free( tmp[i] );
-  free( tmp );
-  free( s );
-
-
+cleanup_tor_flag:
   /* deallocate tor_flag */
   for( i = 0; i < reax->num_atom_types; i++ ) {
     for( j = 0; j < reax->num_atom_types; j++ ) {
@@ -722,9 +720,21 @@ char Read_Force_Field( char *ffield_file, reax_interaction *reax,
   }
   free( tor_flag );
 
-  // close file
+cleanup_tmp:
+  /* deallocate helper storage */
+  for( i = 0; i < MAX_TOKENS; i++ )
+    free( tmp[i] );
+  free( tmp );
+  free( s );
 
+  /* close file */
   fclose(fp);
 
-  return SUCCESS;
+end:
+  if (error_code) {
+      MPI_Abort( comm, error_code );
+  }
+  else {
+    return SUCCESS;
+  }
 }

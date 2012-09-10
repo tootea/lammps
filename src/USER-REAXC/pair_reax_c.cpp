@@ -109,6 +109,8 @@ PairReaxC::PairReaxC(LAMMPS *lmp) : Pair(lmp)
   system->pair_ptr = this;
   memset(&(system->reax_param), 0, sizeof(reax_interaction));
 
+  workspace->allocated = 0;
+
   for( int i = 0; i < LIST_N; ++i )
     lists[i].allocated = 0;
 
