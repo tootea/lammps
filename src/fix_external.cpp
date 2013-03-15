@@ -42,7 +42,7 @@ FixExternal::FixExternal(LAMMPS *lmp, int narg, char **arg) :
     mode = PF_CALLBACK;
     ncall = force->inumeric(FLERR,arg[4]);
     napply = force->inumeric(FLERR,arg[5]);
-    if (ncall <= 0 || napply <= 0) 
+    if (ncall <= 0 || napply < 0)
       error->all(FLERR,"Illegal fix external command");
   } else if (strcmp(arg[3],"pf/array") == 0) {
     if (narg != 5) error->all(FLERR,"Illegal fix external command");
@@ -124,7 +124,7 @@ void FixExternal::post_force(int vflag)
 
   // add forces from fexternal to atoms in group
 
-  if (ntimestep % napply == 0) {
+  if (napply != 0 && ntimestep % napply == 0) {
     double **f = atom->f;
     int *mask = atom->mask;
     int nlocal = atom->nlocal;
