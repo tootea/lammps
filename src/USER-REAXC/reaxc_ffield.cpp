@@ -29,12 +29,98 @@
 #include "reaxc_ffield.h"
 #include "reaxc_tool_box.h"
 
+typedef union ff_entry_t {
+    int i;
+    float r;
+    char *s;
+} ff_entry;
+
+typedef struct ff_reader_t {
+    unsigned int (*read_record)(struct ff_reader_t *ctxt, ff_entry_t *record);
+    int (*get_int)(struct ff_reader_t *ctxt, ff_entry_t *entry);
+    real (*get_real)(struct ff_reader_t *ctxt, ff_entry_t *entry);
+    char *(*get_string)(struct ff_reader_t *ctxt, ff_entry_t *entry);
+    void (*destroy)(struct ff_reader_t *ctxt);
+    FILE *file;
+    void *private_data;
+} ff_reader;
+
+typedef struct ff_text_reader_data_t {
+    char    *s;
+    char   **tmp;
+} ff_text_reader_data;
+
+static unsigned int text_reader_read_record(struct ff_reader_t *ctxt, ff_entry_t *record)
+{
+    ff_text_reader_data *d = (ff_text_reader_data *) ctxt->private_data;
+    unsigned int n, i;
+
+    fgets(d->s,MAX_LINE,ctxt->file);
+    n = Tokenize(d->s,&(d->tmp));
+
+    for (i = 0; i < n; i++) {
+        record[i].s = d->tmp[i];
+    }
+
+    return n;
+}
+
+static int text_reader_get_int(struct ff_reader_t *ctxt, ff_entry_t *entry)
+{
+    return atoi(entry->s);
+}
+
+static real text_reader_get_real(struct ff_reader_t *ctxt, ff_entry_t *entry)
+{
+    return atof(entry->s);
+}
+
+static char *text_reader_get_string(struct ff_reader_t *ctxt, ff_entry_t *entry)
+{
+    return entry->s;
+}
+
+static void text_reader_destroy(struct ff_reader_t *ctxt)
+{
+    ff_text_reader_data *d = (ff_text_reader_data *) ctxt->private_data;
+    unsigned int i;
+
+    for( i = 0; i < MAX_TOKENS; i++ )
+        free( d->tmp[i] );
+    free( d->tmp );
+    free( d->s );
+}
+
+static void init_text_reader(ff_reader *ctxt, FILE *fp)
+{
+    ff_text_reader_data *d;
+    unsigned int i;
+
+    d = (ff_text_reader_data *) malloc(sizeof(ff_text_reader_data));
+
+    d->s = (char*) malloc(sizeof(char)*MAX_LINE);
+    d->tmp = (char**) malloc(sizeof(char*)*MAX_TOKENS);
+    for (i=0; i < MAX_TOKENS; i++) {
+        d->tmp[i] = (char*) malloc(sizeof(char)*MAX_TOKEN_LEN);
+    }
+
+    ctxt->read_record = text_reader_read_record;
+    ctxt->get_int = text_reader_get_int;
+    ctxt->get_real = text_reader_get_real;
+    ctxt->get_string = text_reader_get_string;
+    ctxt->destroy = text_reader_destroy;
+
+    ctxt->file = fp;
+    ctxt->private_data = (void *) d;
+}
+
 char Read_Force_Field( char *ffield_file, reax_interaction *reax,
                        control_params *control )
 {
   FILE    *fp;
-  char    *s;
-  char   **tmp;
+  ff_reader rd;
+  ff_entry *rec;
+  char *tmp;
   char ****tor_flag;
   int      c, i, j, k, l, m, n, o, p, cnt;
   int lgflag = control->lgflag;
@@ -52,24 +138,20 @@ char Read_Force_Field( char *ffield_file, reax_interaction *reax,
     goto end;
   }
 
-  s = (char*) malloc(sizeof(char)*MAX_LINE);
-  tmp = (char**) malloc(sizeof(char*)*MAX_TOKENS);
-  for (i=0; i < MAX_TOKENS; i++)
-    tmp[i] = (char*) malloc(sizeof(char)*MAX_TOKEN_LEN);
-
+  init_text_reader(&rd, fp);
+  rec = (ff_entry *) malloc(MAX_TOKENS * sizeof(ff_entry));
 
   /* reading first header comment */
-  fgets( s, MAX_LINE, fp );
+  c = (*rd.read_record)(&rd, rec);
 
   /* line 2 is number of global parameters */
-  fgets( s, MAX_LINE, fp );
-  c = Tokenize( s, &tmp );
+  c = (*rd.read_record)(&rd, rec);
 
   /* reading the number of global parameters */
-  n = atoi(tmp[0]);
+  n = (*rd.get_int)(&rd, &(rec[0]));
   if (n < 1) {
     fprintf( stderr, "WARNING: number of globals in ffield file is 0!\n" );
-    goto cleanup_tmp;
+    goto cleanup_reader;
   }
 
   reax->gp.n_global = n;
@@ -82,11 +164,9 @@ char Read_Force_Field( char *ffield_file, reax_interaction *reax,
 
   /* see reax_types.h for mapping between l[i] and the lambdas used in ff */
   for (i=0; i < n; i++) {
-    fgets(s,MAX_LINE,fp);
-    c = Tokenize(s,&tmp);
+    c = (*rd.read_record)(&rd, rec);
 
-    val = (real) atof(tmp[0]);
-    reax->gp.l[i] = val;
+    reax->gp.l[i] = (*rd.get_real)(&rd, &(rec[0]));
   }
 
   control->bo_cut    = 0.01 * reax->gp.l[29];
@@ -94,14 +174,13 @@ char Read_Force_Field( char *ffield_file, reax_interaction *reax,
   control->nonb_cut  = reax->gp.l[12];
 
   /* next line is number of atom types and some comments */
-  fgets( s, MAX_LINE, fp );
-  c = Tokenize( s, &tmp );
-  reax->num_atom_types = atoi(tmp[0]);
+  c = (*rd.read_record)(&rd, rec);
+  reax->num_atom_types = (*rd.get_int)(&rd, &(rec[0]));
 
   /* 3 lines of comments */
-  fgets(s,MAX_LINE,fp);
-  fgets(s,MAX_LINE,fp);
-  fgets(s,MAX_LINE,fp);
+  c = (*rd.read_record)(&rd, rec);
+  c = (*rd.read_record)(&rd, rec);
+  c = (*rd.read_record)(&rd, rec);
 
   tor_flag  = (char****)
     scalloc( reax->num_atom_types, sizeof(char***), "tor_flag", comm );
@@ -191,51 +270,48 @@ char Read_Force_Field( char *ffield_file, reax_interaction *reax,
 
   for( i = 0; i < reax->num_atom_types; i++ ) {
     /* line one */
-    fgets( s, MAX_LINE, fp );
-    c = Tokenize( s, &tmp );
+    c = (*rd.read_record)(&rd, rec);
 
-    for( j = 0; j < (int)(strlen(tmp[0])); ++j )
-      reax->sbp[i].name[j] = toupper( tmp[0][j] );
+    tmp = (*rd.get_string)(&rd, &(rec[0]));
+    for( j = 0; j < (int)(strlen(tmp)); ++j )
+      reax->sbp[i].name[j] = toupper( tmp[j] );
 
-    val = atof(tmp[1]); reax->sbp[i].r_s        = val;
-    val = atof(tmp[2]); reax->sbp[i].valency    = val;
-    val = atof(tmp[3]); reax->sbp[i].mass       = val;
-    val = atof(tmp[4]); reax->sbp[i].r_vdw      = val;
-    val = atof(tmp[5]); reax->sbp[i].epsilon    = val;
-    val = atof(tmp[6]); reax->sbp[i].gamma      = val;
-    val = atof(tmp[7]); reax->sbp[i].r_pi       = val;
-    val = atof(tmp[8]); reax->sbp[i].valency_e  = val;
+    val = (*rd.get_real)(&rd, &(rec[1])); reax->sbp[i].r_s        = val;
+    val = (*rd.get_real)(&rd, &(rec[2])); reax->sbp[i].valency    = val;
+    val = (*rd.get_real)(&rd, &(rec[3])); reax->sbp[i].mass       = val;
+    val = (*rd.get_real)(&rd, &(rec[4])); reax->sbp[i].r_vdw      = val;
+    val = (*rd.get_real)(&rd, &(rec[5])); reax->sbp[i].epsilon    = val;
+    val = (*rd.get_real)(&rd, &(rec[6])); reax->sbp[i].gamma      = val;
+    val = (*rd.get_real)(&rd, &(rec[7])); reax->sbp[i].r_pi       = val;
+    val = (*rd.get_real)(&rd, &(rec[8])); reax->sbp[i].valency_e  = val;
     reax->sbp[i].nlp_opt = 0.5 * (reax->sbp[i].valency_e-reax->sbp[i].valency);
 
     /* line two */
-    fgets( s, MAX_LINE, fp );
-    c = Tokenize( s, &tmp );
+    c = (*rd.read_record)(&rd, rec);
 
-    val = atof(tmp[0]); reax->sbp[i].alpha      = val;
-    val = atof(tmp[1]); reax->sbp[i].gamma_w    = val;
-    val = atof(tmp[2]); reax->sbp[i].valency_boc= val;
-    val = atof(tmp[3]); reax->sbp[i].p_ovun5    = val;
-    val = atof(tmp[4]);
-    val = atof(tmp[5]); reax->sbp[i].chi        = val;
-    val = atof(tmp[6]); reax->sbp[i].eta        = 2.0 * val;
-    val = atof(tmp[7]); reax->sbp[i].p_hbond = (int) val;
+    val = (*rd.get_real)(&rd, &(rec[0])); reax->sbp[i].alpha      = val;
+    val = (*rd.get_real)(&rd, &(rec[1])); reax->sbp[i].gamma_w    = val;
+    val = (*rd.get_real)(&rd, &(rec[2])); reax->sbp[i].valency_boc= val;
+    val = (*rd.get_real)(&rd, &(rec[3])); reax->sbp[i].p_ovun5    = val;
+    val = (*rd.get_real)(&rd, &(rec[4]));
+    val = (*rd.get_real)(&rd, &(rec[5])); reax->sbp[i].chi        = val;
+    val = (*rd.get_real)(&rd, &(rec[6])); reax->sbp[i].eta        = 2.0 * val;
+    val = (*rd.get_real)(&rd, &(rec[7])); reax->sbp[i].p_hbond = (int) val;
 
     /* line 3 */
-    fgets( s, MAX_LINE, fp );
-    c = Tokenize( s, &tmp );
+    c = (*rd.read_record)(&rd, rec);
 
-    val = atof(tmp[0]); reax->sbp[i].r_pi_pi    = val;
-    val = atof(tmp[1]); reax->sbp[i].p_lp2      = val;
-    val = atof(tmp[2]);
-    val = atof(tmp[3]); reax->sbp[i].b_o_131    = val;
-    val = atof(tmp[4]); reax->sbp[i].b_o_132    = val;
-    val = atof(tmp[5]); reax->sbp[i].b_o_133    = val;
-    val = atof(tmp[6]);
-    val = atof(tmp[7]);
+    val = (*rd.get_real)(&rd, &(rec[0])); reax->sbp[i].r_pi_pi    = val;
+    val = (*rd.get_real)(&rd, &(rec[1])); reax->sbp[i].p_lp2      = val;
+    val = (*rd.get_real)(&rd, &(rec[2]));
+    val = (*rd.get_real)(&rd, &(rec[3])); reax->sbp[i].b_o_131    = val;
+    val = (*rd.get_real)(&rd, &(rec[4])); reax->sbp[i].b_o_132    = val;
+    val = (*rd.get_real)(&rd, &(rec[5])); reax->sbp[i].b_o_133    = val;
+    val = (*rd.get_real)(&rd, &(rec[6]));
+    val = (*rd.get_real)(&rd, &(rec[7]));
 
     /* line 4  */
-    fgets( s, MAX_LINE, fp );
-    c = Tokenize( s, &tmp );
+    c = (*rd.read_record)(&rd, rec);
 
     /* Sanity check */
     if (c < 3) {
@@ -244,19 +320,18 @@ char Read_Force_Field( char *ffield_file, reax_interaction *reax,
       goto cleanup_tor_flag;
     }
 
-    val = atof(tmp[0]); reax->sbp[i].p_ovun2    = val;
-    val = atof(tmp[1]); reax->sbp[i].p_val3     = val;
-    val = atof(tmp[2]);
-    val = atof(tmp[3]); reax->sbp[i].valency_val= val;
-    val = atof(tmp[4]); reax->sbp[i].p_val5     = val;
-    val = atof(tmp[5]); reax->sbp[i].rcore2     = val;
-    val = atof(tmp[6]); reax->sbp[i].ecore2     = val;
-    val = atof(tmp[7]); reax->sbp[i].acore2     = val;
+    val = (*rd.get_real)(&rd, &(rec[0])); reax->sbp[i].p_ovun2    = val;
+    val = (*rd.get_real)(&rd, &(rec[1])); reax->sbp[i].p_val3     = val;
+    val = (*rd.get_real)(&rd, &(rec[2]));
+    val = (*rd.get_real)(&rd, &(rec[3])); reax->sbp[i].valency_val= val;
+    val = (*rd.get_real)(&rd, &(rec[4])); reax->sbp[i].p_val5     = val;
+    val = (*rd.get_real)(&rd, &(rec[5])); reax->sbp[i].rcore2     = val;
+    val = (*rd.get_real)(&rd, &(rec[6])); reax->sbp[i].ecore2     = val;
+    val = (*rd.get_real)(&rd, &(rec[7])); reax->sbp[i].acore2     = val;
 
     /* line 5, only if lgvdw is yes */
     if (lgflag) {
-      fgets( s, MAX_LINE, fp );
-      c = Tokenize( s, &tmp );
+      c = (*rd.read_record)(&rd, rec);
 
       /* Sanity check */
       if (c > 3) {
@@ -265,8 +340,8 @@ char Read_Force_Field( char *ffield_file, reax_interaction *reax,
         goto cleanup_tor_flag;
       }
 
-      val = atof(tmp[0]); reax->sbp[i].lgcij           = val;
-      val = atof(tmp[1]); reax->sbp[i].lgre           = val;
+      val = (*rd.get_real)(&rd, &(rec[0])); reax->sbp[i].lgcij           = val;
+      val = (*rd.get_real)(&rd, &(rec[1])); reax->sbp[i].lgre           = val;
     }
 
     if( reax->sbp[i].rcore2>0.01 && reax->sbp[i].acore2>0.01 ){ // Inner-wall
@@ -331,61 +406,58 @@ char Read_Force_Field( char *ffield_file, reax_interaction *reax,
     }
 
   /* next line is number of two body combination and some comments */
-  fgets(s,MAX_LINE,fp);
-  c=Tokenize(s,&tmp);
-  l = atoi(tmp[0]);
+  c = (*rd.read_record)(&rd, rec);
+  l = (*rd.get_int)(&rd, &(rec[0]));
 
   /* a line of comments */
-  fgets(s,MAX_LINE,fp);
+  c = (*rd.read_record)(&rd, rec);
 
   for (i=0; i < l; i++) {
     /* line 1 */
-    fgets(s,MAX_LINE,fp);
-    c=Tokenize(s,&tmp);
+    c = (*rd.read_record)(&rd, rec);
 
-    j = atoi(tmp[0]) - 1;
-    k = atoi(tmp[1]) - 1;
+    j = (*rd.get_int)(&rd, &(rec[0])) - 1;
+    k = (*rd.get_int)(&rd, &(rec[1])) - 1;
 
     if (j < reax->num_atom_types && k < reax->num_atom_types) {
 
-      val = atof(tmp[2]); reax->tbp[j][k].De_s      = val;
+      val = (*rd.get_real)(&rd, &(rec[2])); reax->tbp[j][k].De_s      = val;
       reax->tbp[k][j].De_s      = val;
-      val = atof(tmp[3]); reax->tbp[j][k].De_p      = val;
+      val = (*rd.get_real)(&rd, &(rec[3])); reax->tbp[j][k].De_p      = val;
       reax->tbp[k][j].De_p      = val;
-      val = atof(tmp[4]); reax->tbp[j][k].De_pp     = val;
+      val = (*rd.get_real)(&rd, &(rec[4])); reax->tbp[j][k].De_pp     = val;
       reax->tbp[k][j].De_pp     = val;
-      val = atof(tmp[5]); reax->tbp[j][k].p_be1     = val;
+      val = (*rd.get_real)(&rd, &(rec[5])); reax->tbp[j][k].p_be1     = val;
       reax->tbp[k][j].p_be1     = val;
-      val = atof(tmp[6]); reax->tbp[j][k].p_bo5     = val;
+      val = (*rd.get_real)(&rd, &(rec[6])); reax->tbp[j][k].p_bo5     = val;
       reax->tbp[k][j].p_bo5     = val;
-      val = atof(tmp[7]); reax->tbp[j][k].v13cor    = val;
+      val = (*rd.get_real)(&rd, &(rec[7])); reax->tbp[j][k].v13cor    = val;
       reax->tbp[k][j].v13cor    = val;
 
-      val = atof(tmp[8]); reax->tbp[j][k].p_bo6     = val;
+      val = (*rd.get_real)(&rd, &(rec[8])); reax->tbp[j][k].p_bo6     = val;
       reax->tbp[k][j].p_bo6     = val;
-      val = atof(tmp[9]); reax->tbp[j][k].p_ovun1 = val;
+      val = (*rd.get_real)(&rd, &(rec[9])); reax->tbp[j][k].p_ovun1 = val;
       reax->tbp[k][j].p_ovun1 = val;
 
       /* line 2 */
-      fgets(s,MAX_LINE,fp);
-      c=Tokenize(s,&tmp);
+      c = (*rd.read_record)(&rd, rec);
 
-      val = atof(tmp[0]); reax->tbp[j][k].p_be2     = val;
+      val = (*rd.get_real)(&rd, &(rec[0])); reax->tbp[j][k].p_be2     = val;
       reax->tbp[k][j].p_be2     = val;
-      val = atof(tmp[1]); reax->tbp[j][k].p_bo3     = val;
+      val = (*rd.get_real)(&rd, &(rec[1])); reax->tbp[j][k].p_bo3     = val;
       reax->tbp[k][j].p_bo3     = val;
-      val = atof(tmp[2]); reax->tbp[j][k].p_bo4     = val;
+      val = (*rd.get_real)(&rd, &(rec[2])); reax->tbp[j][k].p_bo4     = val;
       reax->tbp[k][j].p_bo4     = val;
-      val = atof(tmp[3]);
+      val = (*rd.get_real)(&rd, &(rec[3]));
 
-      val = atof(tmp[4]); reax->tbp[j][k].p_bo1     = val;
+      val = (*rd.get_real)(&rd, &(rec[4])); reax->tbp[j][k].p_bo1     = val;
       reax->tbp[k][j].p_bo1     = val;
-      val = atof(tmp[5]); reax->tbp[j][k].p_bo2     = val;
+      val = (*rd.get_real)(&rd, &(rec[5])); reax->tbp[j][k].p_bo2     = val;
       reax->tbp[k][j].p_bo2     = val;
-      val = atof(tmp[6]); reax->tbp[j][k].ovc       = val;
+      val = (*rd.get_real)(&rd, &(rec[6])); reax->tbp[j][k].ovc       = val;
       reax->tbp[k][j].ovc       = val;
 
-      val = atof(tmp[7]);
+      val = (*rd.get_real)(&rd, &(rec[7]));
     }
   }
 
@@ -488,55 +560,53 @@ char Read_Force_Field( char *ffield_file, reax_interaction *reax,
 
     }
 
-  fgets(s,MAX_LINE,fp);
-  c=Tokenize(s,&tmp);
-  l = atoi(tmp[0]);
+  c = (*rd.read_record)(&rd, rec);
+  l = (*rd.get_int)(&rd, &(rec[0]));
 
   for (i=0; i < l; i++) {
-    fgets(s,MAX_LINE,fp);
-    c=Tokenize(s,&tmp);
+    c = (*rd.read_record)(&rd, rec);
 
-    j = atoi(tmp[0]) - 1;
-    k = atoi(tmp[1]) - 1;
+    j = (*rd.get_int)(&rd, &(rec[0])) - 1;
+    k = (*rd.get_int)(&rd, &(rec[1])) - 1;
 
     if (j < reax->num_atom_types && k < reax->num_atom_types)        {
-      val = atof(tmp[2]);
+      val = (*rd.get_real)(&rd, &(rec[2]));
       if (val > 0.0) {
         reax->tbp[j][k].D = val;
         reax->tbp[k][j].D = val;
       }
 
-      val = atof(tmp[3]);
+      val = (*rd.get_real)(&rd, &(rec[3]));
       if (val > 0.0) {
         reax->tbp[j][k].r_vdW = 2 * val;
         reax->tbp[k][j].r_vdW = 2 * val;
       }
 
-      val = atof(tmp[4]);
+      val = (*rd.get_real)(&rd, &(rec[4]));
       if (val > 0.0) {
         reax->tbp[j][k].alpha = val;
         reax->tbp[k][j].alpha = val;
       }
 
-      val = atof(tmp[5]);
+      val = (*rd.get_real)(&rd, &(rec[5]));
       if (val > 0.0) {
         reax->tbp[j][k].r_s = val;
         reax->tbp[k][j].r_s = val;
       }
 
-      val = atof(tmp[6]);
+      val = (*rd.get_real)(&rd, &(rec[6]));
       if (val > 0.0) {
         reax->tbp[j][k].r_p = val;
         reax->tbp[k][j].r_p = val;
       }
 
-      val = atof(tmp[7]);
+      val = (*rd.get_real)(&rd, &(rec[7]));
       if (val > 0.0) {
         reax->tbp[j][k].r_pp = val;
         reax->tbp[k][j].r_pp = val;
       }
 
-      val = atof(tmp[8]);
+      val = (*rd.get_real)(&rd, &(rec[8]));
       if (val >= 0.0) {
         reax->tbp[j][k].lgcij = val;
         reax->tbp[k][j].lgcij = val;
@@ -549,17 +619,15 @@ char Read_Force_Field( char *ffield_file, reax_interaction *reax,
       for( k = 0; k < reax->num_atom_types; ++k )
         reax->thbp[i][j][k].cnt = 0;
 
-  fgets( s, MAX_LINE, fp );
-  c = Tokenize( s, &tmp );
-  l = atoi( tmp[0] );
+  c = (*rd.read_record)(&rd, rec);
+  l = (*rd.get_int)(&rd, &(rec[0]));
 
   for( i = 0; i < l; i++ ) {
-    fgets(s,MAX_LINE,fp);
-    c=Tokenize(s,&tmp);
+    c = (*rd.read_record)(&rd, rec);
 
-    j = atoi(tmp[0]) - 1;
-    k = atoi(tmp[1]) - 1;
-    m = atoi(tmp[2]) - 1;
+    j = (*rd.get_int)(&rd, &(rec[0])) - 1;
+    k = (*rd.get_int)(&rd, &(rec[1])) - 1;
+    m = (*rd.get_int)(&rd, &(rec[2])) - 1;
 
     if (j < reax->num_atom_types && k < reax->num_atom_types &&
         m < reax->num_atom_types) {
@@ -567,31 +635,31 @@ char Read_Force_Field( char *ffield_file, reax_interaction *reax,
       reax->thbp[j][k][m].cnt++;
       reax->thbp[m][k][j].cnt++;
 
-      val = atof(tmp[3]);
+      val = (*rd.get_real)(&rd, &(rec[3]));
       reax->thbp[j][k][m].prm[cnt].theta_00 = val;
       reax->thbp[m][k][j].prm[cnt].theta_00 = val;
 
-      val = atof(tmp[4]);
+      val = (*rd.get_real)(&rd, &(rec[4]));
       reax->thbp[j][k][m].prm[cnt].p_val1 = val;
       reax->thbp[m][k][j].prm[cnt].p_val1 = val;
 
-      val = atof(tmp[5]);
+      val = (*rd.get_real)(&rd, &(rec[5]));
       reax->thbp[j][k][m].prm[cnt].p_val2 = val;
       reax->thbp[m][k][j].prm[cnt].p_val2 = val;
 
-      val = atof(tmp[6]);
+      val = (*rd.get_real)(&rd, &(rec[6]));
       reax->thbp[j][k][m].prm[cnt].p_coa1 = val;
       reax->thbp[m][k][j].prm[cnt].p_coa1 = val;
 
-      val = atof(tmp[7]);
+      val = (*rd.get_real)(&rd, &(rec[7]));
       reax->thbp[j][k][m].prm[cnt].p_val7 = val;
       reax->thbp[m][k][j].prm[cnt].p_val7 = val;
 
-      val = atof(tmp[8]);
+      val = (*rd.get_real)(&rd, &(rec[8]));
       reax->thbp[j][k][m].prm[cnt].p_pen1 = val;
       reax->thbp[m][k][j].prm[cnt].p_pen1 = val;
 
-      val = atof(tmp[9]);
+      val = (*rd.get_real)(&rd, &(rec[9]));
       reax->thbp[j][k][m].prm[cnt].p_val4 = val;
       reax->thbp[m][k][j].prm[cnt].p_val4 = val;
     }
@@ -607,18 +675,16 @@ char Read_Force_Field( char *ffield_file, reax_interaction *reax,
         }
 
   /* next line is number of 4-body params and some comments */
-  fgets( s, MAX_LINE, fp );
-  c = Tokenize( s, &tmp );
-  l = atoi( tmp[0] );
+  c = (*rd.read_record)(&rd, rec);
+  l = (*rd.get_int)(&rd, &(rec[0]));
 
   for( i = 0; i < l; i++ ) {
-    fgets( s, MAX_LINE, fp );
-    c = Tokenize( s, &tmp );
+    c = (*rd.read_record)(&rd, rec);
 
-    j = atoi(tmp[0]) - 1;
-    k = atoi(tmp[1]) - 1;
-    m = atoi(tmp[2]) - 1;
-    n = atoi(tmp[3]) - 1;
+    j = (*rd.get_int)(&rd, &(rec[0])) - 1;
+    k = (*rd.get_int)(&rd, &(rec[1])) - 1;
+    m = (*rd.get_int)(&rd, &(rec[2])) - 1;
+    n = (*rd.get_int)(&rd, &(rec[3])) - 1;
 
     if (j >= 0 && n >= 0) { // this means the entry is not in compact form
       if (j < reax->num_atom_types && k < reax->num_atom_types &&
@@ -629,23 +695,23 @@ char Read_Force_Field( char *ffield_file, reax_interaction *reax,
         reax->fbp[j][k][m][n].cnt = 1;
         reax->fbp[n][m][k][j].cnt = 1;
 
-        val = atof(tmp[4]);
+        val = (*rd.get_real)(&rd, &(rec[4]));
         reax->fbp[j][k][m][n].prm[0].V1 = val;
         reax->fbp[n][m][k][j].prm[0].V1 = val;
 
-        val = atof(tmp[5]);
+        val = (*rd.get_real)(&rd, &(rec[5]));
         reax->fbp[j][k][m][n].prm[0].V2 = val;
         reax->fbp[n][m][k][j].prm[0].V2 = val;
 
-        val = atof(tmp[6]);
+        val = (*rd.get_real)(&rd, &(rec[6]));
         reax->fbp[j][k][m][n].prm[0].V3 = val;
         reax->fbp[n][m][k][j].prm[0].V3 = val;
 
-        val = atof(tmp[7]);
+        val = (*rd.get_real)(&rd, &(rec[7]));
         reax->fbp[j][k][m][n].prm[0].p_tor1 = val;
         reax->fbp[n][m][k][j].prm[0].p_tor1 = val;
 
-        val = atof(tmp[8]);
+        val = (*rd.get_real)(&rd, &(rec[8]));
         reax->fbp[j][k][m][n].prm[0].p_cot1 = val;
         reax->fbp[n][m][k][j].prm[0].p_cot1 = val;
       }
@@ -658,19 +724,19 @@ char Read_Force_Field( char *ffield_file, reax_interaction *reax,
             reax->fbp[o][m][k][p].cnt = 1;
 
             if (tor_flag[p][k][m][o] == 0) {
-              reax->fbp[p][k][m][o].prm[0].V1 = atof(tmp[4]);
-              reax->fbp[p][k][m][o].prm[0].V2 = atof(tmp[5]);
-              reax->fbp[p][k][m][o].prm[0].V3 = atof(tmp[6]);
-              reax->fbp[p][k][m][o].prm[0].p_tor1 = atof(tmp[7]);
-              reax->fbp[p][k][m][o].prm[0].p_cot1 = atof(tmp[8]);
+              reax->fbp[p][k][m][o].prm[0].V1 = (*rd.get_real)(&rd, &(rec[4]));
+              reax->fbp[p][k][m][o].prm[0].V2 = (*rd.get_real)(&rd, &(rec[5]));
+              reax->fbp[p][k][m][o].prm[0].V3 = (*rd.get_real)(&rd, &(rec[6]));
+              reax->fbp[p][k][m][o].prm[0].p_tor1 = (*rd.get_real)(&rd, &(rec[7]));
+              reax->fbp[p][k][m][o].prm[0].p_cot1 = (*rd.get_real)(&rd, &(rec[8]));
             }
 
             if (tor_flag[o][m][k][p] == 0) {
-              reax->fbp[o][m][k][p].prm[0].V1 = atof(tmp[4]);
-              reax->fbp[o][m][k][p].prm[0].V2 = atof(tmp[5]);
-              reax->fbp[o][m][k][p].prm[0].V3 = atof(tmp[6]);
-              reax->fbp[o][m][k][p].prm[0].p_tor1 = atof(tmp[7]);
-              reax->fbp[o][m][k][p].prm[0].p_cot1 = atof(tmp[8]);
+              reax->fbp[o][m][k][p].prm[0].V1 = (*rd.get_real)(&rd, &(rec[4]));
+              reax->fbp[o][m][k][p].prm[0].V2 = (*rd.get_real)(&rd, &(rec[5]));
+              reax->fbp[o][m][k][p].prm[0].V3 = (*rd.get_real)(&rd, &(rec[6]));
+              reax->fbp[o][m][k][p].prm[0].p_tor1 = (*rd.get_real)(&rd, &(rec[7]));
+              reax->fbp[o][m][k][p].prm[0].p_cot1 = (*rd.get_real)(&rd, &(rec[8]));
             }
           }
     }
@@ -679,30 +745,28 @@ char Read_Force_Field( char *ffield_file, reax_interaction *reax,
 
 
   /* next line is number of hydrogen bond params and some comments */
-  fgets( s, MAX_LINE, fp );
-  c = Tokenize( s, &tmp );
-  l = atoi( tmp[0] );
+  c = (*rd.read_record)(&rd, rec);
+  l = (*rd.get_int)(&rd, &(rec[0]));
 
   for( i = 0; i < l; i++ ) {
-    fgets( s, MAX_LINE, fp );
-    c = Tokenize( s, &tmp );
+    c = (*rd.read_record)(&rd, rec);
 
-    j = atoi(tmp[0]) - 1;
-    k = atoi(tmp[1]) - 1;
-    m = atoi(tmp[2]) - 1;
+    j = (*rd.get_int)(&rd, &(rec[0])) - 1;
+    k = (*rd.get_int)(&rd, &(rec[1])) - 1;
+    m = (*rd.get_int)(&rd, &(rec[2])) - 1;
 
 
     if( j < reax->num_atom_types && m < reax->num_atom_types ) {
-      val = atof(tmp[3]);
+      val = (*rd.get_real)(&rd, &(rec[3]));
       reax->hbp[j][k][m].r0_hb = val;
 
-      val = atof(tmp[4]);
+      val = (*rd.get_real)(&rd, &(rec[4]));
       reax->hbp[j][k][m].p_hb1 = val;
 
-      val = atof(tmp[5]);
+      val = (*rd.get_real)(&rd, &(rec[5]));
       reax->hbp[j][k][m].p_hb2 = val;
 
-      val = atof(tmp[6]);
+      val = (*rd.get_real)(&rd, &(rec[6]));
       reax->hbp[j][k][m].p_hb3 = val;
     }
   }
@@ -720,12 +784,10 @@ cleanup_tor_flag:
   }
   free( tor_flag );
 
-cleanup_tmp:
+cleanup_reader:
   /* deallocate helper storage */
-  for( i = 0; i < MAX_TOKENS; i++ )
-    free( tmp[i] );
-  free( tmp );
-  free( s );
+  free(rec);
+  (*rd.destroy)(&rd);
 
   /* close file */
   fclose(fp);
