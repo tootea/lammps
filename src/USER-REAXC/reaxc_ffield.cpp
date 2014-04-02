@@ -31,7 +31,7 @@
 
 typedef union ff_entry_t {
     int i;
-    float r;
+    real r;
     char *s;
 } ff_entry;
 
@@ -114,6 +114,112 @@ static void init_text_reader(ff_reader *ctxt, FILE *fp)
     ctxt->private_data = (void *) d;
 }
 
+typedef struct ff_binary_reader_data_t {
+    char s[MAX_LINE];
+    unsigned int spos;
+} ff_binary_reader_data;
+
+static unsigned int binary_reader_read_record(struct ff_reader_t *ctxt, ff_entry_t *record)
+{
+    ff_binary_reader_data *d = (ff_binary_reader_data *) ctxt->private_data;
+    unsigned int n, i, len;
+    unsigned char type;
+    int ival;
+    float fval;
+    double dval;
+
+    d->spos = 0;
+    d->s[0] = '\0';
+    fread(&n, sizeof(n), 1, ctxt->file);
+
+    for (i = 0; i < n; i++) {
+        fread(&type, sizeof(type), 1, ctxt->file);
+        switch (type) {
+        case 'I':
+            fread(&ival, sizeof(ival), 1, ctxt->file);
+            record[i].i = ival;
+            break;
+        case 'F':
+            fread(&fval, sizeof(fval), 1, ctxt->file);
+            record[i].r = fval;
+            break;
+        case 'D':
+            fread(&dval, sizeof(dval), 1, ctxt->file);
+            record[i].r = dval;
+            break;
+        case 'S':
+            fread(&len, sizeof(len), 1, ctxt->file);
+            if (len > 0) {
+                d->spos++;
+                record[i].s = d->s + d->spos;
+                fread(d->s + d->spos, len, 1, ctxt->file);
+                d->spos += len;
+                d->s[d->spos] = '\0';
+            } else {
+                record[i].s = d->s + d->spos;
+            }
+            break;
+        }
+    }
+
+    return n;
+}
+
+static int binary_reader_get_int(struct ff_reader_t *ctxt, ff_entry_t *entry)
+{
+    return entry->i;
+}
+
+static real binary_reader_get_real(struct ff_reader_t *ctxt, ff_entry_t *entry)
+{
+    return entry->r;
+}
+
+static char *binary_reader_get_string(struct ff_reader_t *ctxt, ff_entry_t *entry)
+{
+    return entry->s;
+}
+
+static void binary_reader_destroy(struct ff_reader_t *ctxt)
+{
+}
+
+
+static void init_binary_reader(ff_reader *ctxt, FILE *fp)
+{
+    ff_binary_reader_data *d;
+    unsigned int i;
+
+    d = (ff_binary_reader_data *) malloc(sizeof(ff_binary_reader_data));
+
+    ctxt->read_record = binary_reader_read_record;
+    ctxt->get_int = binary_reader_get_int;
+    ctxt->get_real = binary_reader_get_real;
+    ctxt->get_string = binary_reader_get_string;
+    ctxt->destroy = binary_reader_destroy;
+
+    ctxt->file = fp;
+    ctxt->private_data = (void *) d;
+}
+
+static int ff_read_header(FILE *fp)
+{
+    char header[7];
+    int c;
+    fgets(header, sizeof(header), fp);
+    if (strcmp(header, "BINFF\n") == 0) {
+        return 1;
+    }
+
+    if (strchr(header, '\n') == NULL) {
+        do {
+            c = getc(fp);
+        } while ((c != '\n') && (c != EOF));
+    }
+    return 0;
+}
+
+
 char Read_Force_Field( char *ffield_file, reax_interaction *reax,
                        control_params *control )
 {
@@ -138,11 +244,14 @@ char Read_Force_Field( char *ffield_file, reax_interaction *reax,
     goto end;
   }
 
-  init_text_reader(&rd, fp);
-  rec = (ff_entry *) malloc(MAX_TOKENS * sizeof(ff_entry));
-
   /* reading first header comment */
-  c = (*rd.read_record)(&rd, rec);
+  if (ff_read_header(fp) == 1) {
+    init_binary_reader(&rd, fp);
+  } else {
+    init_text_reader(&rd, fp);
+  }
+
+  rec = (ff_entry *) malloc(MAX_TOKENS * sizeof(ff_entry));
 
   /* line 2 is number of global parameters */
   c = (*rd.read_record)(&rd, rec);
