@@ -105,8 +105,8 @@ void Bonds( reax_system *system, control_params *control,
       /* Stabilisation terminal triple bond */
       if( bo_ij->BO >= 1.00 ) {
 	if( gp37 == 2 ||
-	    (sbp_i->mass == 12.0000 && sbp_j->mass == 15.9990) ||
-	    (sbp_j->mass == 12.0000 && sbp_i->mass == 15.9990) ) {
+           (sbp_i->atomic_num == 6 && sbp_j->atomic_num == 8) ||
+           (sbp_j->atomic_num == 6 && sbp_i->atomic_num == 8) ) {
 	  exphu = exp( -gp7 * SQR(bo_ij->BO - 2.50) );
 	  exphua1 = exp(-gp3 * (workspace->total_bond_order[i]-bo_ij->BO));
 	  exphub1 = exp(-gp3 * (workspace->total_bond_order[j]-bo_ij->BO));

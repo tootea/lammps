@@ -122,6 +122,7 @@ typedef struct
 {
   /* Line one in field file */
   char name[15]; // Two character atom name
+  unsigned int atomic_num; // Atomic number determined from name for fast checking
 
   real r_s;
   real valency;  // Valency of the atom

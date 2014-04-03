@@ -219,6 +219,24 @@ static int ff_read_header(FILE *fp)
     return 0;
 }
 
+static char *atom_names[] = {
+    "H", "HE",
+    "LI", "BE", "B", "C", "N", "O", "F", "NE",
+    "NA", "MG", "AL", "SI", "P", "S", "CL", "AR",
+    "K", "CA", "GA", "GE", "AS", "SE", "BR", "KR"
+};
+
+static unsigned int get_atomic_number(char *name)
+{
+    unsigned int i;
+    for (i = 0; i < sizeof(atom_names) / sizeof(char *); i++) {
+        if (strcmp(name, atom_names[i]) == 0) {
+            return i + 1;
+        }
+    }
+    return 0;
+}
+
 
 char Read_Force_Field( char *ffield_file, reax_interaction *reax,
                        control_params *control )
@@ -384,6 +402,7 @@ char Read_Force_Field( char *ffield_file, reax_interaction *reax,
     tmp = (*rd.get_string)(&rd, &(rec[0]));
     for( j = 0; j < (int)(strlen(tmp)); ++j )
       reax->sbp[i].name[j] = toupper( tmp[j] );
+    reax->sbp[i].atomic_num = get_atomic_number(reax->sbp[i].name);
 
     val = (*rd.get_real)(&rd, &(rec[1])); reax->sbp[i].r_s        = val;
     val = (*rd.get_real)(&rd, &(rec[2])); reax->sbp[i].valency    = val;
