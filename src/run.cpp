@@ -152,6 +152,7 @@ void Run::command(int narg, char **arg)
   // if post, do full Finish, else just print time
 
   update->whichflag = 1;
+  update->breakflag = 0;
 
   if (nevery == 0) {
     update->nsteps = nsteps;
@@ -214,6 +215,10 @@ void Run::command(int narg, char **arg)
       timer->barrier_stop(TIME_LOOP);
 
       update->integrate->cleanup();
+
+      if (update->breakflag) {
+          nleft = nsteps;
+      }
 
       Finish finish(lmp);
       if (postflag || nleft <= nsteps) finish.end(1);

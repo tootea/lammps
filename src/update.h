@@ -34,6 +34,7 @@ class Update : protected Pointers {
   int restrict_output;            // 1 if output should not write dump/restart
   int setupflag;                  // set when setup() is computing forces
   int multireplica;               // 1 if min across replicas, else 0
+  int breakflag;                  // 1 if premature end of the run is requested
 
   bigint eflag_global,eflag_atom;  // timestep global/peratom eng is tallied on
   bigint vflag_global,vflag_atom;  // ditto for virial

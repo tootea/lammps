@@ -305,6 +305,10 @@ void Verlet::run(int n)
       output->write(ntimestep);
       timer->stamp(TIME_OUTPUT);
     }
+
+    if (update->breakflag) {
+      break;
+    }
   }
 }
 
