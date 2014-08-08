@@ -238,3 +238,7 @@ package-diff pd:
 	@for p in $(PACKAGEUC); do $(SHELL) Package.sh $$p diff; done
 	@echo ''
 	@for p in $(PACKUSERUC); do $(SHELL) Package.sh $$p diff; done
+
+package-filelist:
+	@for p in $(PACKAGEUC); do cd $$p; ls -1 *.cpp *.h; cd ..; done
+	@for p in $(PACKUSERUC); do cd $$p; ls -1 *.cpp *.h; cd ..; done
