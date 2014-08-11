@@ -30,176 +30,175 @@
 #include "reaxc_tool_box.h"
 
 typedef union ff_entry_t {
-    int i;
-    real r;
-    char *s;
+  int i;
+  real r;
+  char *s;
 } ff_entry;
 
 typedef struct ff_reader_t {
-    unsigned int (*read_record)(struct ff_reader_t *ctxt, ff_entry_t *record);
-    int (*get_int)(struct ff_reader_t *ctxt, ff_entry_t *entry);
-    real (*get_real)(struct ff_reader_t *ctxt, ff_entry_t *entry);
-    char *(*get_string)(struct ff_reader_t *ctxt, ff_entry_t *entry);
-    void (*destroy)(struct ff_reader_t *ctxt);
-    FILE *file;
-    void *private_data;
+  unsigned int (*read_record)(struct ff_reader_t *ctxt, ff_entry_t *record);
+  int (*get_int)(struct ff_reader_t *ctxt, ff_entry_t *entry);
+  real (*get_real)(struct ff_reader_t *ctxt, ff_entry_t *entry);
+  char *(*get_string)(struct ff_reader_t *ctxt, ff_entry_t *entry);
+  void (*destroy)(struct ff_reader_t *ctxt);
+  FILE *file;
+  void *private_data;
 } ff_reader;
 
 typedef struct ff_text_reader_data_t {
-    char    *s;
-    char   **tmp;
+  char    *s;
+  char   **tmp;
 } ff_text_reader_data;
 
 static unsigned int text_reader_read_record(struct ff_reader_t *ctxt, ff_entry_t *record)
 {
-    ff_text_reader_data *d = (ff_text_reader_data *) ctxt->private_data;
-    unsigned int n, i;
+  ff_text_reader_data *d = (ff_text_reader_data *) ctxt->private_data;
+  unsigned int n, i;
 
-    fgets(d->s,MAX_LINE,ctxt->file);
-    n = Tokenize(d->s,&(d->tmp));
+  fgets(d->s,MAX_LINE,ctxt->file);
+  n = Tokenize(d->s,&(d->tmp));
 
-    for (i = 0; i < n; i++) {
-        record[i].s = d->tmp[i];
-    }
+  for (i = 0; i < n; i++) {
+      record[i].s = d->tmp[i];
+  }
 
-    return n;
+  return n;
 }
 
 static int text_reader_get_int(struct ff_reader_t *ctxt, ff_entry_t *entry)
 {
-    return atoi(entry->s);
+  return atoi(entry->s);
 }
 
 static real text_reader_get_real(struct ff_reader_t *ctxt, ff_entry_t *entry)
 {
-    return atof(entry->s);
+  return atof(entry->s);
 }
 
 static char *text_reader_get_string(struct ff_reader_t *ctxt, ff_entry_t *entry)
 {
-    return entry->s;
+  return entry->s;
 }
 
 static void text_reader_destroy(struct ff_reader_t *ctxt)
 {
-    ff_text_reader_data *d = (ff_text_reader_data *) ctxt->private_data;
-    unsigned int i;
+  ff_text_reader_data *d = (ff_text_reader_data *) ctxt->private_data;
+  unsigned int i;
 
-    for( i = 0; i < MAX_TOKENS; i++ )
-        free( d->tmp[i] );
-    free( d->tmp );
-    free( d->s );
+  for( i = 0; i < MAX_TOKENS; i++ )
+    free( d->tmp[i] );
+  free( d->tmp );
+  free( d->s );
 }
 
 static void init_text_reader(ff_reader *ctxt, FILE *fp)
 {
-    ff_text_reader_data *d;
-    unsigned int i;
+  ff_text_reader_data *d;
+  unsigned int i;
 
-    d = (ff_text_reader_data *) malloc(sizeof(ff_text_reader_data));
+  d = (ff_text_reader_data *) malloc(sizeof(ff_text_reader_data));
 
-    d->s = (char*) malloc(sizeof(char)*MAX_LINE);
-    d->tmp = (char**) malloc(sizeof(char*)*MAX_TOKENS);
-    for (i=0; i < MAX_TOKENS; i++) {
-        d->tmp[i] = (char*) malloc(sizeof(char)*MAX_TOKEN_LEN);
-    }
+  d->s = (char*) malloc(sizeof(char)*MAX_LINE);
+  d->tmp = (char**) malloc(sizeof(char*)*MAX_TOKENS);
+  for (i=0; i < MAX_TOKENS; i++) {
+    d->tmp[i] = (char*) malloc(sizeof(char)*MAX_TOKEN_LEN);
+  }
 
-    ctxt->read_record = text_reader_read_record;
-    ctxt->get_int = text_reader_get_int;
-    ctxt->get_real = text_reader_get_real;
-    ctxt->get_string = text_reader_get_string;
-    ctxt->destroy = text_reader_destroy;
+  ctxt->read_record = text_reader_read_record;
+  ctxt->get_int = text_reader_get_int;
+  ctxt->get_real = text_reader_get_real;
+  ctxt->get_string = text_reader_get_string;
+  ctxt->destroy = text_reader_destroy;
 
-    ctxt->file = fp;
-    ctxt->private_data = (void *) d;
+  ctxt->file = fp;
+  ctxt->private_data = (void *) d;
 }
 
 typedef struct ff_binary_reader_data_t {
-    char s[MAX_LINE];
-    unsigned int spos;
+  char s[MAX_LINE];
+  unsigned int spos;
 } ff_binary_reader_data;
 
 static unsigned int binary_reader_read_record(struct ff_reader_t *ctxt, ff_entry_t *record)
 {
-    ff_binary_reader_data *d = (ff_binary_reader_data *) ctxt->private_data;
-    unsigned int n, i, len;
-    unsigned char type;
-    int ival;
-    float fval;
-    double dval;
+  ff_binary_reader_data *d = (ff_binary_reader_data *) ctxt->private_data;
+  unsigned int n, i, len;
+  unsigned char type;
+  int ival;
+  float fval;
+  double dval;
 
-    d->spos = 0;
-    d->s[0] = '\0';
-    fread(&n, sizeof(n), 1, ctxt->file);
+  d->spos = 0;
+  d->s[0] = '\0';
+  fread(&n, sizeof(n), 1, ctxt->file);
 
-    for (i = 0; i < n; i++) {
-        fread(&type, sizeof(type), 1, ctxt->file);
-        switch (type) {
-        case 'I':
-            fread(&ival, sizeof(ival), 1, ctxt->file);
-            record[i].i = ival;
-            break;
-        case 'F':
-            fread(&fval, sizeof(fval), 1, ctxt->file);
-            record[i].r = fval;
-            break;
-        case 'D':
-            fread(&dval, sizeof(dval), 1, ctxt->file);
-            record[i].r = dval;
-            break;
-        case 'S':
-            fread(&len, sizeof(len), 1, ctxt->file);
-            if (len > 0) {
-                d->spos++;
-                record[i].s = d->s + d->spos;
-                fread(d->s + d->spos, len, 1, ctxt->file);
-                d->spos += len;
-                d->s[d->spos] = '\0';
-            } else {
-                record[i].s = d->s + d->spos;
-            }
-            break;
-        }
+  for (i = 0; i < n; i++) {
+    fread(&type, sizeof(type), 1, ctxt->file);
+    switch (type) {
+    case 'I':
+      fread(&ival, sizeof(ival), 1, ctxt->file);
+      record[i].i = ival;
+      break;
+    case 'F':
+      fread(&fval, sizeof(fval), 1, ctxt->file);
+      record[i].r = fval;
+      break;
+    case 'D':
+      fread(&dval, sizeof(dval), 1, ctxt->file);
+      record[i].r = dval;
+      break;
+    case 'S':
+      fread(&len, sizeof(len), 1, ctxt->file);
+      if (len > 0) {
+        d->spos++;
+        record[i].s = d->s + d->spos;
+        fread(d->s + d->spos, len, 1, ctxt->file);
+        d->spos += len;
+        d->s[d->spos] = '\0';
+      } else {
+        record[i].s = d->s + d->spos;
+      }
+      break;
     }
+  }
 
-    return n;
+  return n;
 }
 
 static int binary_reader_get_int(struct ff_reader_t *ctxt, ff_entry_t *entry)
 {
-    return entry->i;
+  return entry->i;
 }
 
 static real binary_reader_get_real(struct ff_reader_t *ctxt, ff_entry_t *entry)
 {
-    return entry->r;
+  return entry->r;
 }
 
 static char *binary_reader_get_string(struct ff_reader_t *ctxt, ff_entry_t *entry)
 {
-    return entry->s;
+  return entry->s;
 }
 
 static void binary_reader_destroy(struct ff_reader_t *ctxt)
 {
 }
 
-
 static void init_binary_reader(ff_reader *ctxt, FILE *fp)
 {
-    ff_binary_reader_data *d;
-    unsigned int i;
+  ff_binary_reader_data *d;
+  unsigned int i;
 
-    d = (ff_binary_reader_data *) malloc(sizeof(ff_binary_reader_data));
+  d = (ff_binary_reader_data *) malloc(sizeof(ff_binary_reader_data));
 
-    ctxt->read_record = binary_reader_read_record;
-    ctxt->get_int = binary_reader_get_int;
-    ctxt->get_real = binary_reader_get_real;
-    ctxt->get_string = binary_reader_get_string;
-    ctxt->destroy = binary_reader_destroy;
+  ctxt->read_record = binary_reader_read_record;
+  ctxt->get_int = binary_reader_get_int;
+  ctxt->get_real = binary_reader_get_real;
+  ctxt->get_string = binary_reader_get_string;
+  ctxt->destroy = binary_reader_destroy;
 
-    ctxt->file = fp;
-    ctxt->private_data = (void *) d;
+  ctxt->file = fp;
+  ctxt->private_data = (void *) d;
 }
 
 static int ff_read_header(FILE *fp)
@@ -220,21 +219,21 @@ static int ff_read_header(FILE *fp)
 }
 
 static char *atom_names[] = {
-    "H", "HE",
-    "LI", "BE", "B", "C", "N", "O", "F", "NE",
-    "NA", "MG", "AL", "SI", "P", "S", "CL", "AR",
-    "K", "CA", "GA", "GE", "AS", "SE", "BR", "KR"
+  "H", "HE",
+  "LI", "BE", "B", "C", "N", "O", "F", "NE",
+  "NA", "MG", "AL", "SI", "P", "S", "CL", "AR",
+  "K", "CA", "GA", "GE", "AS", "SE", "BR", "KR"
 };
 
 static unsigned int get_atomic_number(char *name)
 {
-    unsigned int i;
-    for (i = 0; i < sizeof(atom_names) / sizeof(char *); i++) {
-        if (strcmp(name, atom_names[i]) == 0) {
-            return i + 1;
-        }
-    }
-    return 0;
+  unsigned int i;
+  for (i = 0; i < sizeof(atom_names) / sizeof(char *); i++) {
+      if (strcmp(name, atom_names[i]) == 0) {
+          return i + 1;
+      }
+  }
+  return 0;
 }
 
 
