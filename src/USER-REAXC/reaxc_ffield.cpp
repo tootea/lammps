@@ -89,6 +89,7 @@ static void text_reader_destroy(struct ff_reader_t *ctxt)
     free( d->tmp[i] );
   free( d->tmp );
   free( d->s );
+  free( d );
 }
 
 static void init_text_reader(ff_reader *ctxt, FILE *fp)
@@ -182,6 +183,7 @@ static char *binary_reader_get_string(struct ff_reader_t *ctxt, ff_entry_t *entr
 
 static void binary_reader_destroy(struct ff_reader_t *ctxt)
 {
+  free(ctxt->private_data);
 }
 
 static void init_binary_reader(ff_reader *ctxt, FILE *fp)
