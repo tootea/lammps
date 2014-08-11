@@ -32,14 +32,14 @@
 typedef union ff_entry_t {
   int i;
   real r;
-  char *s;
+  const char *s;
 } ff_entry;
 
 typedef struct ff_reader_t {
   unsigned int (*read_record)(struct ff_reader_t *ctxt, ff_entry_t *record);
   int (*get_int)(struct ff_reader_t *ctxt, ff_entry_t *entry);
   real (*get_real)(struct ff_reader_t *ctxt, ff_entry_t *entry);
-  char *(*get_string)(struct ff_reader_t *ctxt, ff_entry_t *entry);
+  const char *(*get_string)(struct ff_reader_t *ctxt, ff_entry_t *entry);
   void (*destroy)(struct ff_reader_t *ctxt);
   FILE *file;
   void *private_data;
@@ -75,7 +75,7 @@ static real text_reader_get_real(struct ff_reader_t *ctxt, ff_entry_t *entry)
   return atof(entry->s);
 }
 
-static char *text_reader_get_string(struct ff_reader_t *ctxt, ff_entry_t *entry)
+static const char *text_reader_get_string(struct ff_reader_t *ctxt, ff_entry_t *entry)
 {
   return entry->s;
 }
@@ -153,11 +153,10 @@ static unsigned int binary_reader_read_record(struct ff_reader_t *ctxt, ff_entry
       if (len > 0) {
         d->spos++;
         record[i].s = d->s + d->spos;
-        fread(d->s + d->spos, len, 1, ctxt->file);
-        d->spos += len;
-        d->s[d->spos] = '\0';
+        fread(d->s + d->spos, len + 1, 1, ctxt->file);
+        d->spos += len + 1;
       } else {
-        record[i].s = d->s + d->spos;
+        record[i].s = "";
       }
       break;
     }
@@ -176,7 +175,7 @@ static real binary_reader_get_real(struct ff_reader_t *ctxt, ff_entry_t *entry)
   return entry->r;
 }
 
-static char *binary_reader_get_string(struct ff_reader_t *ctxt, ff_entry_t *entry)
+static const char *binary_reader_get_string(struct ff_reader_t *ctxt, ff_entry_t *entry)
 {
   return entry->s;
 }
@@ -189,7 +188,6 @@ static void binary_reader_destroy(struct ff_reader_t *ctxt)
 static void init_binary_reader(ff_reader *ctxt, FILE *fp)
 {
   ff_binary_reader_data *d;
-  unsigned int i;
 
   d = (ff_binary_reader_data *) malloc(sizeof(ff_binary_reader_data));
 
@@ -220,7 +218,7 @@ static int ff_read_header(FILE *fp)
     return 0;
 }
 
-static char *atom_names[] = {
+static const char *atom_names[] = {
   "H", "HE",
   "LI", "BE", "B", "C", "N", "O", "F", "NE",
   "NA", "MG", "AL", "SI", "P", "S", "CL", "AR",
@@ -245,7 +243,7 @@ char Read_Force_Field( char *ffield_file, reax_interaction *reax,
   FILE    *fp;
   ff_reader rd;
   ff_entry *rec;
-  char *tmp;
+  const char *tmp;
   char ****tor_flag;
   int      c, i, j, k, l, m, n, o, p, cnt;
   int lgflag = control->lgflag;
