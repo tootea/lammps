@@ -90,6 +90,7 @@ static void text_reader_destroy(struct ff_reader_t *ctxt)
   free( d->tmp );
   free( d->s );
   free( d );
+  fclose(ctxt->file);
 }
 
 static void init_text_reader(ff_reader *ctxt, FILE *fp)
@@ -183,6 +184,7 @@ static const char *binary_reader_get_string(struct ff_reader_t *ctxt, ff_entry_t
 static void binary_reader_destroy(struct ff_reader_t *ctxt)
 {
   free(ctxt->private_data);
+  fclose(ctxt->file);
 }
 
 static void init_binary_reader(ff_reader *ctxt, FILE *fp)
@@ -201,21 +203,104 @@ static void init_binary_reader(ff_reader *ctxt, FILE *fp)
   ctxt->private_data = (void *) d;
 }
 
-static int ff_read_header(FILE *fp)
+static unsigned int memory_reader_read_record(struct ff_reader_t *ctxt, ff_entry_t *record)
 {
-    char header[7];
-    int c;
-    fgets(header, sizeof(header), fp);
-    if (strcmp(header, "BINFF\n") == 0) {
-        return 1;
-    }
+  const char *pos = (char *) ctxt->private_data;
+  unsigned int n, i, len;
+  unsigned char type;
+  float fval;
+  double dval;
 
-    if (strchr(header, '\n') == NULL) {
-        do {
-            c = getc(fp);
-        } while ((c != '\n') && (c != EOF));
+  memcpy(&n, pos, sizeof(n));
+  pos += sizeof(n);
+
+  for (i = 0; i < n; i++) {
+    memcpy(&type, pos, sizeof(type));
+    pos += sizeof(type);
+
+    switch (type) {
+    case 'I':
+      memcpy(&(record[i].i), pos, sizeof(record[i].i));
+      pos += sizeof(record[i].i);
+      break;
+    case 'F':
+      memcpy(&fval, pos, sizeof(fval));
+      pos += sizeof(fval);
+      record[i].r = fval;
+      break;
+    case 'D':
+      memcpy(&dval, pos, sizeof(dval));
+      pos += sizeof(dval);
+      record[i].r = dval;
+      break;
+    case 'S':
+      memcpy(&len, pos, sizeof(len));
+      pos += sizeof(len);
+
+      if (len > 0) {
+        record[i].s = pos;
+        pos += len + 1;
+      } else {
+        record[i].s = "";
+      }
+      break;
     }
-    return 0;
+  }
+
+  ctxt->private_data = (void *) pos;
+
+  return n;
+}
+
+static void memory_reader_destroy(struct ff_reader_t *ctxt)
+{
+}
+
+static void init_memory_reader(ff_reader *ctxt, char *data)
+{
+  ctxt->read_record = memory_reader_read_record;
+  ctxt->get_int = binary_reader_get_int;
+  ctxt->get_real = binary_reader_get_real;
+  ctxt->get_string = binary_reader_get_string;
+  ctxt->destroy = memory_reader_destroy;
+
+  ctxt->file = NULL;
+  ctxt->private_data = (void *) (data + 6);
+}
+
+static bool init_ff_reader(ff_reader *ctxt, char *ffield_file)
+{
+  if (strncmp(ffield_file, "MEM:", 4) == 0) {
+    char *data;
+    if ((sscanf(ffield_file + 4, "%p", &data) == 1) && (memcmp(data, "BINFF\n", 6) == 0)) {
+      init_memory_reader(ctxt, data);
+      return true;
+    }
+  }
+
+  FILE *fp;
+  /* open force field file */
+  if ((fp = fopen( ffield_file, "r" ) ) == NULL) {
+    return false;
+  }
+
+  /* reading first header comment */
+  char header[7];
+  int c;
+  fgets(header, sizeof(header), fp);
+  if (strcmp(header, "BINFF\n") == 0) {
+    init_binary_reader(ctxt, fp);
+    return true;
+  }
+
+  if (strchr(header, '\n') == NULL) {
+    do {
+      c = getc(fp);
+    } while ((c != '\n') && (c != EOF));
+  }
+  init_text_reader(ctxt, fp);
+
+  return true;
 }
 
 static const char *atom_names[] = {
@@ -255,17 +340,10 @@ char Read_Force_Field( char *ffield_file, reax_interaction *reax,
   comm = MPI_COMM_WORLD;
 
   /* open force field file */
-  if ( (fp = fopen( ffield_file, "r" ) ) == NULL ) {
+  if (!init_ff_reader(&rd, ffield_file)) {
     fprintf( stderr, "error opening the force field file! terminating...\n" );
     error_code = FILE_NOT_FOUND;
     goto end;
-  }
-
-  /* reading first header comment */
-  if (ff_read_header(fp) == 1) {
-    init_binary_reader(&rd, fp);
-  } else {
-    init_text_reader(&rd, fp);
   }
 
   rec = (ff_entry *) malloc(MAX_TOKENS * sizeof(ff_entry));
@@ -914,10 +992,8 @@ cleanup_tor_flag:
 cleanup_reader:
   /* deallocate helper storage */
   free(rec);
-  (*rd.destroy)(&rd);
-
   /* close file */
-  fclose(fp);
+  (*rd.destroy)(&rd);
 
 end:
   if (error_code) {
