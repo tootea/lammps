@@ -338,11 +338,6 @@ void FixQEqReax::init()
 		       "different numbers of atoms");
   */
 
-  total_charge = 0;
-  for (i = 0; i < atom->natoms; i++) {
-    total_charge += atom->q[i];
-  }
-
   // need a half neighbor list w/ Newton off and ghost neighbors
   // built whenever re-neighboring occurs
 
@@ -424,6 +419,8 @@ void FixQEqReax::setup_pre_force(int vflag)
 
   deallocate_matrix();
   allocate_matrix();
+
+  total_charge = parallel_vector_acc(atom->q, atom->nlocal);
 
   pre_force(vflag);
 }
