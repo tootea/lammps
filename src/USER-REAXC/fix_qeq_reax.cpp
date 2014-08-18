@@ -644,7 +644,7 @@ double FixQEqReax::calculate_H( double r, double gamma )
   Taper = Taper * r + Tap[0];
 
   denom = r * r * r + gamma;
-  denom = pow(denom,0.3333333333333);
+  denom = cbrt(denom);
 
   return Taper * EV_TO_KCAL_PER_MOL / denom;
 }

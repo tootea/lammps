@@ -182,7 +182,7 @@ real Compute_H( real r, real gamma, real *ctap )
   taper = taper * r + ctap[0];
 
   dr3gamij_1 = ( r*r*r + gamma );
-  dr3gamij_3 = pow( dr3gamij_1 , 0.33333333333333 );
+  dr3gamij_3 = cbrt( dr3gamij_1 );
   return taper * EV_to_KCALpMOL / dr3gamij_3;
 }
 
