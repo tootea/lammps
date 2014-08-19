@@ -90,6 +90,7 @@ void Valence_Angles( reax_system *system, control_params *control,
   real p_coa1, p_coa2, p_coa3, p_coa4;
   real trm8, expval6, expval7, expval2theta, expval12theta, exp3ij, exp3jk;
   real exp_pen2ij, exp_pen2jk, exp_pen3, exp_pen4, trm_pen34, exp_coa2;
+  real expval10SBO2, trm_coa34_ij;
   real dSBO1, dSBO2, SBO, SBO2, CSBO2, SBOp, prod_SBO, vlpadj;
   real CEval1, CEval2, CEval3, CEval4, CEval5, CEval6, CEval7, CEval8;
   real CEpen1, CEpen2, CEpen3;
@@ -172,6 +173,8 @@ void Valence_Angles( reax_system *system, control_params *control,
     else
       SBO2 = 2, CSBO2 = 0;
 
+    expval10SBO2 = exp( -p_val10 * (2.0 - SBO2) );
+
     expval6 = exp( p_val6 * workspace->Delta_boc[j] );
 
     exp_pen3 = exp( -p_pen3 * workspace->Delta[j] );
@@ -196,6 +199,10 @@ void Valence_Angles( reax_system *system, control_params *control,
           ( j < system->n || pbond_ij->nbr < system->n ) ) {
         i = pbond_ij->nbr;
         type_i = system->my_atoms[i].type;
+
+        trm_coa34_ij =
+          -p_coa3 * SQR(workspace->total_bond_order[i]-BOA_ij) +
+          -p_coa4 * SQR(BOA_ij - 1.5);
 
         for( pk = start_j; pk < pi; ++pk ) {
           start_pk = Start_Index( pk, thb_intrs );
@@ -238,10 +245,6 @@ void Valence_Angles( reax_system *system, control_params *control,
           p_ijk->pthb = pk;
           p_ijk->theta = theta;
 
-          sin_theta = sin( theta );
-          if( sin_theta < 1.0e-5 )
-            sin_theta = 1.0e-5;
-
           ++num_thb_intrs;
 
 
@@ -250,6 +253,10 @@ void Valence_Angles( reax_system *system, control_params *control,
               (bo_jk->BO > control->thb_cut) &&
               (bo_ij->BO * bo_jk->BO > control->thb_cutsq) ) {
             thbh = &( system->reax_param.thbp[ type_i ][ type_j ][ type_k ] );
+
+            sin_theta = sin( theta );
+            if( sin_theta < 1.0e-5 )
+              sin_theta = 1.0e-5;
 
             for( cnt = 0; cnt < thbh->cnt; ++cnt ) {
               if( fabs(thbh->prm[cnt].p_val1) > 0.001 ) {
@@ -279,8 +286,7 @@ void Valence_Angles( reax_system *system, control_params *control,
                   ( p_val6 * expval6 * trm8 -
                     (2.0 + expval6) * ( p_val6*expval6 - p_val7*expval7 ) );
 
-                theta_0 = 180.0 - theta_00 * (1.0 -
-                                              exp(-p_val10 * (2.0 - SBO2)));
+                theta_0 = 180.0 - theta_00 * (1.0 - expval10SBO2);
                 theta_0 = DEG2RAD( theta_0 );
 
                 expval2theta  = exp( -p_val2 * SQR(theta_0 - theta) );
@@ -295,8 +301,7 @@ void Valence_Angles( reax_system *system, control_params *control,
                 CEval4 = -2.0 * p_val1 * p_val2 * f7_ij * f7_jk * f8_Dj *
                   expval2theta * (theta_0 - theta);
 
-                Ctheta_0 = p_val10 * DEG2RAD(theta_00) *
-                  exp( -p_val10 * (2.0 - SBO2) );
+                Ctheta_0 = p_val10 * DEG2RAD(theta_00) * expval10SBO2;
 
                 CEval5 = -CEval4 * Ctheta_0 * CSBO2;
                 CEval6 = CEval5 * dSBO1;
@@ -310,11 +315,9 @@ void Valence_Angles( reax_system *system, control_params *control,
                 /* PENALTY ENERGY */
                 p_pen1 = thbp->p_pen1;
 
-                exp_pen2ij = exp( -p_pen2 * SQR( BOA_ij - 2.0 ) );
-                exp_pen2jk = exp( -p_pen2 * SQR( BOA_jk - 2.0 ) );
-
                 data->my_en.e_pen += e_pen =
-                  p_pen1 * f9_Dj * exp_pen2ij * exp_pen2jk;
+                  p_pen1 * f9_Dj * exp( -p_pen2 *
+                    ( SQR( BOA_ij - 2.0 ) + SQR( BOA_jk - 2.0 ) ) );
 
                 CEpen1 = e_pen * Cf9j / f9_Dj;
                 temp   = -2.0 * p_pen2 * e_pen;
@@ -327,10 +330,11 @@ void Valence_Angles( reax_system *system, control_params *control,
 
                 data->my_en.e_coa += e_coa =
                   p_coa1 / (1. + exp_coa2) *
-                  exp( -p_coa3 * SQR(workspace->total_bond_order[i]-BOA_ij) ) *
-                  exp( -p_coa3 * SQR(workspace->total_bond_order[k]-BOA_jk) ) *
-                  exp( -p_coa4 * SQR(BOA_ij - 1.5) ) *
-                  exp( -p_coa4 * SQR(BOA_jk - 1.5) );
+                  exp(
+                    trm_coa34_ij +
+                    -p_coa3 * SQR(workspace->total_bond_order[k]-BOA_jk) +
+                    -p_coa4 * SQR(BOA_jk - 1.5)
+                  );
 
                 CEcoa1 = -2 * p_coa4 * (BOA_ij - 1.5) * e_coa;
                 CEcoa2 = -2 * p_coa4 * (BOA_jk - 1.5) * e_coa;
