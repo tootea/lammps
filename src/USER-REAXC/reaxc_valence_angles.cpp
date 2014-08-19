@@ -118,6 +118,12 @@ void Valence_Angles( reax_system *system, control_params *control,
   p_val8 = system->reax_param.gp.l[33];
   p_val9 = system->reax_param.gp.l[16];
   p_val10 = system->reax_param.gp.l[17];
+  p_pen2 = system->reax_param.gp.l[19];
+  p_pen3 = system->reax_param.gp.l[20];
+  p_pen4 = system->reax_param.gp.l[21];
+  p_coa2 = system->reax_param.gp.l[2];
+  p_coa3 = system->reax_param.gp.l[38];
+  p_coa4 = system->reax_param.gp.l[30];
   num_thb_intrs = 0;
 
 
@@ -167,6 +173,17 @@ void Valence_Angles( reax_system *system, control_params *control,
       SBO2 = 2, CSBO2 = 0;
 
     expval6 = exp( p_val6 * workspace->Delta_boc[j] );
+
+    exp_pen3 = exp( -p_pen3 * workspace->Delta[j] );
+    exp_pen4 = exp(  p_pen4 * workspace->Delta[j] );
+    trm_pen34 = 1.0 + exp_pen3 + exp_pen4;
+    f9_Dj = ( 2.0 + exp_pen3 ) / trm_pen34;
+    Cf9j = ( -p_pen3 * exp_pen3 * trm_pen34 -
+                (2.0 + exp_pen3) * ( -p_pen3 * exp_pen3 +
+                                    p_pen4 * exp_pen4 ) ) /
+        SQR( trm_pen34 );
+
+    exp_coa2 = exp( p_coa2 * workspace->Delta_val[j] );
 
     for( pi = start_j; pi < end_j; ++pi ) {
       Set_Start_Index( pi, num_thb_intrs, thb_intrs );
@@ -292,20 +309,9 @@ void Valence_Angles( reax_system *system, control_params *control,
 
                 /* PENALTY ENERGY */
                 p_pen1 = thbp->p_pen1;
-                p_pen2 = system->reax_param.gp.l[19];
-                p_pen3 = system->reax_param.gp.l[20];
-                p_pen4 = system->reax_param.gp.l[21];
 
                 exp_pen2ij = exp( -p_pen2 * SQR( BOA_ij - 2.0 ) );
                 exp_pen2jk = exp( -p_pen2 * SQR( BOA_jk - 2.0 ) );
-                exp_pen3 = exp( -p_pen3 * workspace->Delta[j] );
-                exp_pen4 = exp(  p_pen4 * workspace->Delta[j] );
-                trm_pen34 = 1.0 + exp_pen3 + exp_pen4;
-                f9_Dj = ( 2.0 + exp_pen3 ) / trm_pen34;
-                Cf9j = ( -p_pen3 * exp_pen3 * trm_pen34 -
-                         (2.0 + exp_pen3) * ( -p_pen3 * exp_pen3 +
-                                              p_pen4 * exp_pen4 ) ) /
-                  SQR( trm_pen34 );
 
                 data->my_en.e_pen += e_pen =
                   p_pen1 * f9_Dj * exp_pen2ij * exp_pen2jk;
@@ -318,11 +324,7 @@ void Valence_Angles( reax_system *system, control_params *control,
 
                 /* COALITION ENERGY */
                 p_coa1 = thbp->p_coa1;
-                p_coa2 = system->reax_param.gp.l[2];
-                p_coa3 = system->reax_param.gp.l[38];
-                p_coa4 = system->reax_param.gp.l[30];
 
-                exp_coa2 = exp( p_coa2 * workspace->Delta_val[j] );
                 data->my_en.e_coa += e_coa =
                   p_coa1 / (1. + exp_coa2) *
                   exp( -p_coa3 * SQR(workspace->total_bond_order[i]-BOA_ij) ) *
