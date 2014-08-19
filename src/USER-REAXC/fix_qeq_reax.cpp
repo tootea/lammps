@@ -380,7 +380,7 @@ void FixQEqReax::init_shielding()
 
 void FixQEqReax::init_taper()
 {
-  double d7, swa2, swa3, swb2, swb3;
+  double d1, d7, swa2, swa3, swb2, swb3;
 
   if (fabs(swa) > 0.01 && comm->me == 0)
     error->warning(FLERR,"Fix qeq/reax has non-zero lower Taper radius cutoff");
@@ -389,7 +389,8 @@ void FixQEqReax::init_taper()
   else if (swb < 5 && comm->me == 0)
     error->warning(FLERR,"Fix qeq/reax has very low Taper radius cutoff");
 
-  d7 = pow( swb - swa, 7 );
+  d1 = swb - swa;
+  d7 = CUBE(d1)*CUBE(d1)* d1;
   swa2 = SQR( swa );
   swa3 = CUBE( swa );
   swb2 = SQR( swb );

@@ -101,7 +101,7 @@ void Init_Taper( control_params *control,  storage *workspace, MPI_Comm comm )
     fprintf( stderr, "Warning: very low Taper-radius cutoff: %f\n", swb );
 
   d1 = swb - swa;
-  d7 = pow( d1, 7.0 );
+  d7 = CUBE(d1)*CUBE(d1)*d1;
   swa2 = SQR( swa );
   swa3 = CUBE( swa );
   swb2 = SQR( swb );

@@ -104,13 +104,13 @@ void Atom_Energy( reax_system *system, control_params *control,
           twbp = &( system->reax_param.tbp[type_i][type_j]);
           bo_ij = &( bonds->select.bond_list[pj].bo_data );
           Di = workspace->Delta[i];
-          vov3 = bo_ij->BO - Di - 0.040*pow(Di, 4.);
+          vov3 = bo_ij->BO - Di - 0.040*SQR(SQR(Di));
 
           if( vov3 > 3. ) {
             data->my_en.e_lp += e_lph = p_lp3 * SQR(vov3-3.0);
 
             deahu2dbo = 2.*p_lp3*(vov3 - 3.);
-            deahu2dsbo = 2.*p_lp3*(vov3 - 3.)*(-1. - 0.16*pow(Di, 3.));
+            deahu2dsbo = 2.*p_lp3*(vov3 - 3.)*(-1. - 0.16*CUBE(Di));
 
             bo_ij->Cdbo += deahu2dbo;
             workspace->CdDelta[i] += deahu2dsbo;

@@ -121,8 +121,7 @@ void vdW_Coulomb_Energy( reax_system *system, control_params *control,
           e_vdW = twbp->D * (exp1 - 2.0 * exp2);
           data->my_en.e_vdW += Tap * e_vdW;
 
-          dfn13 = pow( powr_vdW1 + powgi_vdW1, p_vdW1i - 1.0) *
-            pow(r_ij, p_vdW1 - 2.0);
+          dfn13 = fn13 * powr_vdW1 / ((powr_vdW1 + powgi_vdW1) * SQR(r_ij));
 
           CEvd = dTap * e_vdW -
             Tap * twbp->D * (twbp->alpha / twbp->r_vdW) * (exp1 - exp2) * dfn13;
@@ -148,9 +147,9 @@ void vdW_Coulomb_Energy( reax_system *system, control_params *control,
 
           //  lg correction, only if lgvdw is yes
           if (control->lgflag) {
-            r_ij5 = pow( r_ij, 5.0 );
-            r_ij6 = pow( r_ij, 6.0 );
-            re6 = pow( twbp->lgre, 6.0 );
+            r_ij5 = CUBE(r_ij) * SQR(r_ij);
+            r_ij6 = r_ij5 * r_ij;
+            re6 = SQR(CUBE(twbp->lgre));
             e_lg = -(twbp->lgcij/( r_ij6 + re6 ));
             data->my_en.e_vdW += Tap * e_lg;
 
@@ -383,7 +382,7 @@ void LR_vdW_Coulomb( reax_system *system, storage *workspace,
 
       lr->e_vdW = Tap * twbp->D * (exp1 - 2.0 * exp2);
 
-      dfn13 = pow( powr_vdW1 + powgi_vdW1, p_vdW1i-1.0) * pow(r_ij, p_vdW1-2.0);
+      dfn13 = fn13 * powr_vdW1 / ((powr_vdW1 + powgi_vdW1) * SQR(r_ij));
 
       lr->CEvd = dTap * twbp->D * (exp1 - 2.0 * exp2) -
         Tap * twbp->D * (twbp->alpha / twbp->r_vdW) * (exp1 - exp2) * dfn13;
@@ -407,9 +406,9 @@ void LR_vdW_Coulomb( reax_system *system, storage *workspace,
 
       //  lg correction, only if lgvdw is yes
       if (control->lgflag) {
-        r_ij5 = pow( r_ij, 5.0 );
-        r_ij6 = pow( r_ij, 6.0 );
-        re6 = pow( twbp->lgre, 6.0 );
+        r_ij5 = CUBE(r_ij) * SQR(r_ij);
+        r_ij6 = r_ij5 * r_ij;
+        re6 = SQR(CUBE(twbp->lgre));
         e_lg = -(twbp->lgcij/( r_ij6 + re6 ));
         lr->e_vdW += Tap * e_lg;
 

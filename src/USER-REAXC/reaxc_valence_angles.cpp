@@ -59,7 +59,7 @@ void Calculate_dCos_Theta( rvec dvec_ji, real d_ji, rvec dvec_jk, real d_jk,
   real sqr_d_ji = SQR(d_ji);
   real sqr_d_jk = SQR(d_jk);
   real inv_dists = 1.0 / (d_ji * d_jk);
-  real inv_dists3 = pow( inv_dists, 3.0 );
+  real inv_dists3 = CUBE(inv_dists);
   real dot_dvecs = Dot( dvec_ji, dvec_jk, 3 );
   real Cdot_inv3 = dot_dvecs * inv_dists3;
 
@@ -156,11 +156,12 @@ void Valence_Angles( reax_system *system, control_params *control,
       SBO2 = 0, CSBO2 = 0;
     else if( SBO > 0 && SBO <= 1 ) {
         SBO2 = pow( SBO, p_val9 );
-        CSBO2 = p_val9 * pow( SBO, p_val9 - 1 );
+        CSBO2 = p_val9 * SBO2 / SBO;
     }
     else if( SBO > 1 && SBO < 2 ) {
-      SBO2 = 2 - pow( 2-SBO, p_val9 );
-      CSBO2 = p_val9 * pow( 2 - SBO, p_val9 - 1 );
+      temp = pow( 2-SBO, p_val9 );
+      SBO2 = 2 - temp;
+      CSBO2 = p_val9 * temp / (2 - SBO);
     }
     else
       SBO2 = 2, CSBO2 = 0;
@@ -244,13 +245,15 @@ void Valence_Angles( reax_system *system, control_params *control,
                 p_val7 = thbp->p_val7;
                 theta_00 = thbp->theta_00;
 
-                exp3ij = exp( -p_val3 * pow( BOA_ij, p_val4 ) );
+                temp = pow( BOA_ij, p_val4 );
+                exp3ij = exp( -p_val3 * temp );
                 f7_ij = 1.0 - exp3ij;
-                Cf7ij = p_val3 * p_val4 * pow( BOA_ij, p_val4 - 1.0 ) * exp3ij;
+                Cf7ij = p_val3 * p_val4 * exp3ij * temp / BOA_ij;
 
-                exp3jk = exp( -p_val3 * pow( BOA_jk, p_val4 ) );
+                temp = pow( BOA_jk, p_val4 );
+                exp3jk = exp( -p_val3 * temp );
                 f7_jk = 1.0 - exp3jk;
-                Cf7jk = p_val3 * p_val4 * pow( BOA_jk, p_val4 - 1.0 ) * exp3jk;
+                Cf7jk = p_val3 * p_val4 * exp3jk * temp / BOA_jk;
 
                 expval7 = exp( -p_val7 * workspace->Delta_boc[j] );
                 trm8 = 1.0 + expval6 + expval7;
