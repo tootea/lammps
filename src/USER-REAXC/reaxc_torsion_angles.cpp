@@ -33,7 +33,7 @@
 
 #define MIN_SINE 1e-10
 
-real Calculate_Omega( rvec dvec_ij, real r_ij,
+real Calculate_Cos_Omega( rvec dvec_ij, real r_ij,
                       rvec dvec_jk, real r_jk,
                       rvec dvec_kl, real r_kl,
                       rvec dvec_li, real r_li,
@@ -43,25 +43,14 @@ real Calculate_Omega( rvec dvec_ij, real r_ij,
                       rvec dcos_omega_dk, rvec dcos_omega_dl,
                       output_controls *out_control )
 {
-  real unnorm_cos_omega, unnorm_sin_omega, omega;
   real sin_ijk, cos_ijk, sin_jkl, cos_jkl;
   real htra, htrb, htrc, hthd, hthe, hnra, hnrc, hnhd, hnhe;
   real arg, poem, tel;
-  rvec cross_jk_kl;
 
   sin_ijk = sin( p_ijk->theta );
   cos_ijk = cos( p_ijk->theta );
   sin_jkl = sin( p_jkl->theta );
   cos_jkl = cos( p_jkl->theta );
-
-  /* omega */
-  unnorm_cos_omega = -rvec_Dot(dvec_ij, dvec_jk) * rvec_Dot(dvec_jk, dvec_kl) +
-    SQR( r_jk ) *  rvec_Dot( dvec_ij, dvec_kl );
-
-  rvec_Cross( cross_jk_kl, dvec_jk, dvec_kl );
-  unnorm_sin_omega = -r_jk * rvec_Dot( dvec_ij, cross_jk_kl );
-
-  omega = atan2( unnorm_sin_omega, unnorm_cos_omega );
 
   htra = r_ij + cos_ijk * ( r_kl * cos_jkl - r_jk );
   htrb = r_jk - r_ij * cos_ijk - r_kl * cos_jkl;
@@ -73,6 +62,7 @@ real Calculate_Omega( rvec dvec_ij, real r_ij,
   hnhd = r_ij * r_kl * cos_ijk * sin_jkl;
   hnhe = r_ij * r_kl * sin_ijk * cos_jkl;
 
+  /* omega */
   poem = 2.0 * r_ij * r_kl * sin_ijk * sin_jkl;
   if( poem < 1e-20 ) poem = 1e-20;
 
@@ -113,7 +103,7 @@ real Calculate_Omega( rvec dvec_ij, real r_ij,
   rvec_ScaledAdd( dcos_omega_dl,-(hthe-arg*hnhe)/sin_jkl, p_jkl->dcos_dk );
   rvec_Scale( dcos_omega_dl, 2.0 / poem, dcos_omega_dl );
 
-  return omega;
+  return arg;
 }
 
 
@@ -140,7 +130,7 @@ void Torsion_Angles( reax_system *system, control_params *control,
   real sin_ijk, sin_jkl;
   real cos_ijk, cos_jkl;
   real tan_ijk_i, tan_jkl_i;
-  real omega, cos_omega, cos2omega, cos3omega;
+  real cos_omega, cos2omega, cos3omega;
   rvec dcos_omega_di, dcos_omega_dj, dcos_omega_dk, dcos_omega_dl;
   real CV, cmn, CEtors1, CEtors2, CEtors3, CEtors4;
   real CEtors5, CEtors6, CEtors7, CEtors8, CEtors9;
@@ -272,7 +262,7 @@ void Torsion_Angles( reax_system *system, control_params *control,
 
 
                   /* omega and its derivative */
-                  omega = Calculate_Omega( pbond_ij->dvec, r_ij,
+                  cos_omega = Calculate_Cos_Omega( pbond_ij->dvec, r_ij,
                                            pbond_jk->dvec, r_jk,
                                            pbond_kl->dvec, r_kl,
                                            dvec_li, r_li,
@@ -281,9 +271,8 @@ void Torsion_Angles( reax_system *system, control_params *control,
                                            dcos_omega_dk, dcos_omega_dl,
                                            out_control );
 
-                  cos_omega = cos( omega );
-                  cos2omega = cos( 2. * omega );
-                  cos3omega = cos( 3. * omega );
+                  cos2omega = 2 * SQR(cos_omega) - 1;
+                  cos3omega = cos_omega * (4 * SQR(cos_omega) - 3);
                   /* end omega calculations */
 
                   /* torsion energy */
