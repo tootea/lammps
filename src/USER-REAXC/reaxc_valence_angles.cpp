@@ -192,7 +192,7 @@ void Valence_Angles( reax_system *system, control_params *control,
       Set_Start_Index( pi, num_thb_intrs, thb_intrs );
       pbond_ij = &(bonds->select.bond_list[pi]);
       bo_ij = &(pbond_ij->bo_data);
-      BOA_ij = bo_ij->BO - control->thb_cut;
+      BOA_ij = bo_ij->BOA;
 
 
       if( BOA_ij/*bo_ij->BO*/ > 0.0 &&
@@ -230,7 +230,7 @@ void Valence_Angles( reax_system *system, control_params *control,
         for( pk = pi+1; pk < end_j; ++pk ) {
           pbond_jk = &(bonds->select.bond_list[pk]);
           bo_jk    = &(pbond_jk->bo_data);
-          BOA_jk   = bo_jk->BO - control->thb_cut;
+          BOA_jk   = bo_jk->BOA;
           k        = pbond_jk->nbr;
           type_k   = system->my_atoms[k].type;
           p_ijk    = &( thb_intrs->select.three_body_list[num_thb_intrs] );
@@ -319,9 +319,11 @@ void Valence_Angles( reax_system *system, control_params *control,
                 /* PENALTY ENERGY */
                 p_pen1 = thbp->p_pen1;
 
+                exp_pen2ij = bo_ij->exp_pen2;
+                exp_pen2jk = bo_jk->exp_pen2;
+
                 data->my_en.e_pen += e_pen =
-                  p_pen1 * f9_Dj * exp( -p_pen2 *
-                    ( SQR( BOA_ij - 2.0 ) + SQR( BOA_jk - 2.0 ) ) );
+                  p_pen1 * f9_Dj * exp_pen2ij * exp_pen2jk;
 
                 CEpen1 = e_pen * Cf9j / f9_Dj;
                 temp   = -2.0 * p_pen2 * e_pen;

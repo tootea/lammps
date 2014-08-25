@@ -569,6 +569,7 @@ typedef struct{
   real C1dbopi, C2dbopi, C3dbopi, C4dbopi;
   real C1dbopi2, C2dbopi2, C3dbopi2, C4dbopi2;
   rvec dBOp, dln_BOp_s, dln_BOp_pi, dln_BOp_pi2;
+  real BOA, exp_pen2, exp_tor2, exp_cot2;
 } bond_order_data;
 
 typedef struct {

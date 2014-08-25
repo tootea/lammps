@@ -377,7 +377,7 @@ void BO( reax_system *system, control_params *control, simulation_data *data,
   real temp, u1_ij, u1_ji, Cf1A_ij, Cf1B_ij, Cf1_ij, Cf1_ji;
   real Cf45_ij, Cf45_ji, p_lp1; //u_ij, u_ji
   real A0_ij, A1_ij, A2_ij, A2_ji, A3_ij, A3_ji;
-  real explp1, p_boc1, p_boc2;
+  real explp1, p_boc1, p_boc2, p_pen2, p_tor2, p_cot2;
   single_body_parameters *sbp_i, *sbp_j;
   two_body_parameters *twbp;
   bond_order_data *bo_ij, *bo_ji;
@@ -385,6 +385,9 @@ void BO( reax_system *system, control_params *control, simulation_data *data,
 
   p_boc1 = system->reax_param.gp.l[0];
   p_boc2 = system->reax_param.gp.l[1];
+  p_pen2 = system->reax_param.gp.l[19];
+  p_tor2 = system->reax_param.gp.l[23];
+  p_cot2 = system->reax_param.gp.l[27];
 
  /* Calculate Deltaprime, Deltaprime_boc values */
   for( i = 0; i < system->N; ++i ) {
@@ -542,6 +545,14 @@ void BO( reax_system *system, control_params *control, simulation_data *data,
         if( bo_ij->BO_pi2 < 1e-10 )
           bo_ij->BO_pi2 = 0.0;
 
+        /* precompute per-bond factors for angles/torsions */
+        bo_ij->BOA = bo_ij->BO - control->thb_cut;
+        if (bo_ij->BOA > 0.0) {
+          bo_ij->exp_pen2 = exp( -p_pen2 * SQR(bo_ij->BOA - 2.0) );
+          bo_ij->exp_tor2 = exp( -p_tor2 * bo_ij->BOA );
+          bo_ij->exp_cot2 = exp( -p_cot2 * SQR(bo_ij->BOA - 1.5) );
+        }
+
         workspace->total_bond_order[i] += bo_ij->BO; //now keeps total_BO
 
       }
@@ -554,6 +565,10 @@ void BO( reax_system *system, control_params *control, simulation_data *data,
         bo_ij->BO_s = bo_ji->BO_s;
         bo_ij->BO_pi = bo_ji->BO_pi;
         bo_ij->BO_pi2 = bo_ji->BO_pi2;
+        bo_ij->BOA = bo_ji->BOA;
+        bo_ij->exp_pen2 = bo_ji->exp_pen2;
+        bo_ij->exp_tor2 = bo_ji->exp_tor2;
+        bo_ij->exp_cot2 = bo_ji->exp_cot2;
 
         workspace->total_bond_order[i] += bo_ij->BO;// now keeps total_BO
       }

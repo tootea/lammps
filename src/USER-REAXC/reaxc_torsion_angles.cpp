@@ -169,7 +169,7 @@ void Torsion_Angles( reax_system *system, control_params *control,
       pbond_jk = &( bonds->select.bond_list[pk] );
       k = pbond_jk->nbr;
       bo_jk = &( pbond_jk->bo_data );
-      BOA_jk = bo_jk->BO - control->thb_cut;
+      BOA_jk = bo_jk->BOA;
 
       if( system->my_atoms[j].orig_id > system->my_atoms[k].orig_id )
 	continue;
@@ -195,8 +195,8 @@ void Torsion_Angles( reax_system *system, control_params *control,
           start_pj = Start_Index(pj, thb_intrs );
           end_pj = End_Index(pj, thb_intrs );
 
-          exp_tor2_jk = exp( -p_tor2 * BOA_jk );
-          exp_cot2_jk = exp( -p_cot2 * SQR(BOA_jk - 1.5) );
+          exp_tor2_jk = bo_jk->exp_tor2;
+          exp_cot2_jk = bo_jk->exp_cot2;
           exp_tor3_DjDk = exp( -p_tor3 * (Delta_j + Delta_k) );
           exp_tor4_DjDk = exp( p_tor4  * (Delta_j + Delta_k) );
           exp_tor34_inv = 1.0 / (1.0 + exp_tor3_DjDk + exp_tor4_DjDk);
@@ -212,7 +212,7 @@ void Torsion_Angles( reax_system *system, control_params *control,
               i = p_ijk->thb;
               type_i = system->my_atoms[i].type;
               r_ij = pbond_ij->d;
-              BOA_ij = bo_ij->BO - control->thb_cut;
+              BOA_ij = bo_ij->BOA;
 
               theta_ijk = p_ijk->theta;
               sin_ijk = p_ijk->sin_theta;
@@ -224,8 +224,8 @@ void Torsion_Angles( reax_system *system, control_params *control,
                 tan_ijk_i = cos_ijk / -MIN_SINE;
               else tan_ijk_i = cos_ijk / sin_ijk;
 
-              exp_tor2_ij = exp( -p_tor2 * BOA_ij );
-              exp_cot2_ij = exp( -p_cot2 * SQR(BOA_ij -1.5) );
+              exp_tor2_ij = bo_ij->exp_tor2;
+              exp_cot2_ij = bo_ij->exp_cot2;
 
               for( pl = start_pj; pl < end_pj; ++pl ) {
                 p_jkl = &( thb_intrs->select.three_body_list[pl] );
@@ -244,7 +244,7 @@ void Torsion_Angles( reax_system *system, control_params *control,
                     bo_ij->BO * bo_jk->BO * bo_kl->BO > control->thb_cut/*0*/ ){
                   ++num_frb_intrs;
                   r_kl = pbond_kl->d;
-                  BOA_kl = bo_kl->BO - control->thb_cut;
+                  BOA_kl = bo_kl->BOA;
 
                   theta_jkl = p_jkl->theta;
                   sin_jkl = p_jkl->sin_theta;
@@ -278,8 +278,8 @@ void Torsion_Angles( reax_system *system, control_params *control,
                   /* torsion energy */
                   exp_tor1 = exp( fbp->p_tor1 *
                                   SQR(2.0 - bo_jk->BO_pi - f11_DjDk) );
-                  exp_tor2_kl = exp( -p_tor2 * BOA_kl );
-                  exp_cot2_kl = exp( -p_cot2 * SQR(BOA_kl - 1.5) );
+                  exp_tor2_kl = bo_kl->exp_tor2;
+                  exp_cot2_kl = bo_kl->exp_cot2;
                   fn10 = (1.0 - exp_tor2_ij) * (1.0 - exp_tor2_jk) *
                     (1.0 - exp_tor2_kl);
 
