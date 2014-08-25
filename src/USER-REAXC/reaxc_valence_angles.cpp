@@ -137,15 +137,13 @@ void Valence_Angles( reax_system *system, control_params *control,
     p_val3 = system->reax_param.sbp[ type_j ].p_val3;
     p_val5 = system->reax_param.sbp[ type_j ].p_val5;
 
-    SBOp = 0, prod_SBO = 1;
+    SBOp = 0, temp = 0;
     for( t = start_j; t < end_j; ++t ) {
       bo_jt = &(bonds->select.bond_list[t].bo_data);
       SBOp += (bo_jt->BO_pi + bo_jt->BO_pi2);
-      temp = SQR( bo_jt->BO );
-      temp *= temp;
-      temp *= temp;
-      prod_SBO *= exp( -temp );
+      temp += SQR( SQR( SQR( bo_jt->BO ) ) );
     }
+    prod_SBO = exp( -temp );
 
     if( workspace->vlpex[j] >= 0 ){
       vlpadj = 0;
