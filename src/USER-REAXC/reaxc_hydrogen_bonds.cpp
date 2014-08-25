@@ -42,7 +42,7 @@ void Hydrogen_Bonds( reax_system *system, control_params *control,
   int  itr, top;
   int  num_hb_intrs = 0;
   ivec rel_jk;
-  real r_jk, theta, cos_theta, sin_xhz4, cos_xhz1, sin_theta2;
+  real r_jk, theta, cos_theta, sin_xhz4, cos_xhz1;
   real e_hb, exp_hb2, exp_hb3, CEhb1, CEhb2, CEhb3;
   rvec dcos_theta_di, dcos_theta_dj, dcos_theta_dk;
   rvec dvec_jk, force, ext_press;
@@ -113,10 +113,8 @@ void Hydrogen_Bonds( reax_system *system, control_params *control,
                                   &dcos_theta_dk );
 
             /* hyrogen bond energy*/
-            sin_theta2 = sin( theta/2.0 );
-            sin_xhz4 = SQR(sin_theta2);
-            sin_xhz4 *= sin_xhz4;
             cos_xhz1 = ( 1.0 - cos_theta );
+            sin_xhz4 = SQR( cos_xhz1 )/4.0; // (sin(theta/2))^2 = (1 - cos(theta)) / 2
             exp_hb2 = exp( -hbp->p_hb2 * bo_ij->BO );
             exp_hb3 = exp( -hbp->p_hb3 * ( hbp->r0_hb / r_jk +
                                            r_jk / hbp->r0_hb - 2.0 ) );

@@ -50,6 +50,17 @@ void Calculate_Theta( rvec dvec_ji, real d_ji, rvec dvec_jk, real d_jk,
   (*theta) = acos( *cos_theta );
 }
 
+real Calculate_Sin_Theta( rvec dvec_ji, real d_ji, rvec dvec_jk, real d_jk )
+{
+  rvec cross;
+  real sin_theta;
+
+  rvec_Cross( cross, dvec_ji, dvec_jk );
+  sin_theta = rvec_Norm(cross) / ( d_ji * d_jk );
+
+  return sin_theta;
+}
+
 void Calculate_dCos_Theta( rvec dvec_ji, real d_ji, rvec dvec_jk, real d_jk,
                            rvec* dcos_theta_di,
                            rvec* dcos_theta_dj,
@@ -246,7 +257,8 @@ void Valence_Angles( reax_system *system, control_params *control,
           p_ijk->theta = theta;
           p_ijk->cos_theta = cos_theta;
 
-          sin_theta = sin( theta );
+          sin_theta = Calculate_Sin_Theta( pbond_ij->dvec, pbond_ij->d,
+                                           pbond_jk->dvec, pbond_jk->d );
           p_ijk->sin_theta = sin_theta;
 
           ++num_thb_intrs;
