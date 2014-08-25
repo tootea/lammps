@@ -531,7 +531,7 @@ typedef struct
 typedef struct{
   int thb;
   int pthb; // pointer to the third body on the central atom's nbrlist
-  real theta, cos_theta;
+  real theta, cos_theta, sin_theta;
   rvec dcos_di, dcos_dj, dcos_dk;
 } three_body_interaction_data;
 

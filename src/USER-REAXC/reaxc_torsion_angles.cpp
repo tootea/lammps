@@ -47,10 +47,10 @@ real Calculate_Cos_Omega( rvec dvec_ij, real r_ij,
   real htra, htrb, htrc, hthd, hthe, hnra, hnrc, hnhd, hnhe;
   real arg, poem, tel;
 
-  sin_ijk = sin( p_ijk->theta );
-  cos_ijk = cos( p_ijk->theta );
-  sin_jkl = sin( p_jkl->theta );
-  cos_jkl = cos( p_jkl->theta );
+  sin_ijk = p_ijk->sin_theta;
+  cos_ijk = p_ijk->cos_theta;
+  sin_jkl = p_jkl->sin_theta;
+  cos_jkl = p_jkl->cos_theta;
 
   htra = r_ij + cos_ijk * ( r_kl * cos_jkl - r_jk );
   htrb = r_jk - r_ij * cos_ijk - r_kl * cos_jkl;
@@ -215,8 +215,8 @@ void Torsion_Angles( reax_system *system, control_params *control,
               BOA_ij = bo_ij->BO - control->thb_cut;
 
               theta_ijk = p_ijk->theta;
-              sin_ijk = sin( theta_ijk );
-              cos_ijk = cos( theta_ijk );
+              sin_ijk = p_ijk->sin_theta;
+              cos_ijk = p_ijk->cos_theta;
               //tan_ijk_i = 1. / tan( theta_ijk );
               if( sin_ijk >= 0 && sin_ijk <= MIN_SINE )
                 tan_ijk_i = cos_ijk / MIN_SINE;
@@ -247,8 +247,8 @@ void Torsion_Angles( reax_system *system, control_params *control,
                   BOA_kl = bo_kl->BO - control->thb_cut;
 
                   theta_jkl = p_jkl->theta;
-                  sin_jkl = sin( theta_jkl );
-                  cos_jkl = cos( theta_jkl );
+                  sin_jkl = p_jkl->sin_theta;
+                  cos_jkl = p_jkl->cos_theta;
                   //tan_jkl_i = 1. / tan( theta_jkl );
                   if( sin_jkl >= 0 && sin_jkl <= MIN_SINE )
                     tan_jkl_i = cos_jkl / MIN_SINE;

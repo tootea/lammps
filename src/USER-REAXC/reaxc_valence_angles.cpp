@@ -216,6 +216,8 @@ void Valence_Angles( reax_system *system, control_params *control,
               p_ijk->thb = bonds->select.bond_list[pk].nbr;
               p_ijk->pthb  = pk;
               p_ijk->theta = p_kji->theta;
+              p_ijk->cos_theta = p_kji->cos_theta;
+              p_ijk->sin_theta = p_kji->sin_theta;
               rvec_Copy( p_ijk->dcos_di, p_kji->dcos_dk );
               rvec_Copy( p_ijk->dcos_dj, p_kji->dcos_dj );
               rvec_Copy( p_ijk->dcos_dk, p_kji->dcos_di );
@@ -244,9 +246,12 @@ void Valence_Angles( reax_system *system, control_params *control,
           p_ijk->thb = k;
           p_ijk->pthb = pk;
           p_ijk->theta = theta;
+          p_ijk->cos_theta = cos_theta;
+
+          sin_theta = sin( theta );
+          p_ijk->sin_theta = sin_theta;
 
           ++num_thb_intrs;
-
 
           if( (j < system->n) && (BOA_jk > 0.0) &&
               (bo_ij->BO > control->thb_cut) &&
@@ -254,7 +259,6 @@ void Valence_Angles( reax_system *system, control_params *control,
               (bo_ij->BO * bo_jk->BO > control->thb_cutsq) ) {
             thbh = &( system->reax_param.thbp[ type_i ][ type_j ][ type_k ] );
 
-            sin_theta = sin( theta );
             if( sin_theta < 1.0e-5 )
               sin_theta = 1.0e-5;
 
