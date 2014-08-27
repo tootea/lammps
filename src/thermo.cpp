@@ -280,8 +280,22 @@ void Thermo::header()
   if (lineflag == MULTILINE) return;
 
   int loc = 0;
-  for (int i = 0; i < nfield; i++)
-    loc += sprintf(&line[loc],"%s ",keyword[i]);
+  for (int i = 0; i < nfield; i++) {
+    int fieldwidth = 1;
+
+    char *w;
+    w = strchr(format[i], '%');
+    if (w != NULL) {
+      while ((*w != '\0') && !isdigit(*w)) {
+        w++;
+      }
+      if (*w != '\0') {
+        fieldwidth = atoi(w);
+      }
+    }
+
+    loc += sprintf(&line[loc],"%*s ",fieldwidth, keyword[i]);
+  }
   sprintf(&line[loc],"\n");
 
   if (me == 0) {
