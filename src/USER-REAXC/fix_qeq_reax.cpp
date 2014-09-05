@@ -755,11 +755,13 @@ void FixQEqReax::sparse_matvec( sparse_matrix *A, double *x, double *b )
   for( ii = 0; ii < nn; ++ii ) {
     i = ilist[ii];
     if (atom->mask[i] & groupbit) {
+      double b_i = b[i], x_i = x[i];
       for( itr_j=A->firstnbr[i]; itr_j<A->firstnbr[i]+A->numnbrs[i]; itr_j++) {
         j = A->jlist[itr_j];
-        b[i] += A->val[itr_j] * x[j];
-        b[j] += A->val[itr_j] * x[i];
+        b_i += A->val[itr_j] * x[j];
+        b[j] += A->val[itr_j] * x_i;
       }
+      b[i] = b_i;
     }
   }
 
