@@ -684,7 +684,7 @@ int PairReaxC::write_reax_lists()
   int *ilist, *jlist, *numneigh, **firstneigh;
   double d_sqr;
   rvec dvec;
-  double *dist, **x;
+  double dist, nbcutsq, **x;
   reax_list *far_nbrs;
   far_neighbor_data *far_list;
 
@@ -697,9 +697,9 @@ int PairReaxC::write_reax_lists()
   far_list = far_nbrs->select.far_nbr_list;
 
   num_nbrs = 0;
-  dist = (double*) calloc( system->N, sizeof(double) );
 
   int numall = list->inum + list->gnum;
+  nbcutsq = control->nonb_cut * control->nonb_cut;
 
   for( itr_i = 0; itr_i < numall; ++itr_i ){
     i = ilist[itr_i];
@@ -711,16 +711,14 @@ int PairReaxC::write_reax_lists()
       j &= NEIGHMASK;
       get_distance( x[j], x[i], &d_sqr, &dvec );
 
-      if( d_sqr <= (control->nonb_cut*control->nonb_cut) ){
-        dist[j] = sqrt( d_sqr );
-        set_far_nbr( &far_list[num_nbrs], j, dist[j], dvec );
+      if( d_sqr <= nbcutsq){
+        dist = sqrt( d_sqr );
+        set_far_nbr( &far_list[num_nbrs], j, dist, dvec );
         ++num_nbrs;
       }
     }
     Set_End_Index( i, num_nbrs, far_nbrs );
   }
-
-  free( dist );
 
   return num_nbrs;
 }
