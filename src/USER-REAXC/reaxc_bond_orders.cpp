@@ -369,18 +369,8 @@ void BO( reax_system *system, control_params *control, simulation_data *data,
          storage *workspace, reax_list **lists, output_controls *out_control )
 {
   int i, j, pj, type_i, type_j;
-  int start_i, end_i, sym_index;
-  real val_i, Deltap_i, Deltap_boc_i;
-  real val_j, Deltap_j, Deltap_boc_j;
-  real f1, f2, f3, f4, f5, f4f5, exp_f4, exp_f5;
-  real exp_p1i,        exp_p2i, exp_p1j, exp_p2j;
-  real temp, u1_ij, u1_ji, Cf1A_ij, Cf1B_ij, Cf1_ij, Cf1_ji;
-  real Cf45_ij, Cf45_ji, p_lp1; //u_ij, u_ji
-  real A0_ij, A1_ij, A2_ij, A2_ji, A3_ij, A3_ji;
-  real explp1, p_boc1, p_boc2, p_pen2, p_tor2, p_cot2;
+  real explp1, p_boc1, p_boc2, p_pen2, p_tor2, p_cot2, p_lp1;
   single_body_parameters *sbp_i, *sbp_j;
-  two_body_parameters *twbp;
-  bond_order_data *bo_ij, *bo_ji;
   reax_list *bonds = (*lists) + BONDS;
 
   p_boc1 = system->reax_param.gp.l[0];
@@ -402,7 +392,19 @@ void BO( reax_system *system, control_params *control, simulation_data *data,
   }
 
   /* Corrected Bond Order calculations */
+  #pragma omp parallel for private(j, pj, type_i, type_j, sbp_i, sbp_j)
   for( i = 0; i < system->N; ++i ) {
+    int start_i, end_i, sym_index;
+    real val_i, Deltap_i, Deltap_boc_i;
+    real val_j, Deltap_j, Deltap_boc_j;
+    real f1, f2, f3, f4, f5, f4f5, exp_f4, exp_f5;
+    real exp_p1i,        exp_p2i, exp_p1j, exp_p2j;
+    real temp, u1_ij, u1_ji, Cf1A_ij, Cf1B_ij, Cf1_ij, Cf1_ji;
+    real Cf45_ij, Cf45_ji; //u_ij, u_ji
+    real A0_ij, A1_ij, A2_ij, A2_ji, A3_ij, A3_ji;
+    two_body_parameters *twbp;
+    bond_order_data *bo_ij, *bo_ji;
+
     type_i = system->my_atoms[i].type;
     if (type_i < 0) continue;
     sbp_i = &(system->reax_param.sbp[type_i]);
@@ -416,10 +418,10 @@ void BO( reax_system *system, control_params *control, simulation_data *data,
       j = bonds->select.bond_list[pj].nbr;
       type_j = system->my_atoms[j].type;
       if (type_j < 0) continue;
-      bo_ij = &( bonds->select.bond_list[pj].bo_data );
-      // fprintf( stderr, "\tj:%d - ubo: %8.3f\n", j+1, bo_ij->BO );
 
       if( i < j || workspace->bond_mark[j] > 3 ) {
+        bo_ij = &( bonds->select.bond_list[pj].bo_data );
+        // fprintf( stderr, "\tj:%d - ubo: %8.3f\n", j+1, bo_ij->BO );
         twbp = &( system->reax_param.tbp[type_i][type_j] );
 
         if( twbp->ovc < 0.001 && twbp->v13cor < 0.001 ) {
@@ -554,9 +556,29 @@ void BO( reax_system *system, control_params *control, simulation_data *data,
         }
 
         workspace->total_bond_order[i] += bo_ij->BO; //now keeps total_BO
-
       }
-      else {
+    }
+  }
+
+  #pragma omp parallel for private(j, pj, type_i, type_j)
+  for( i = 0; i < system->N; ++i ) {
+    int start_i, end_i, sym_index;
+    bond_order_data *bo_ij, *bo_ji;
+
+    type_i = system->my_atoms[i].type;
+    if (type_i < 0) continue;
+    start_i = Start_Index(i, bonds);
+    end_i = End_Index(i, bonds);
+
+    for( pj = start_i; pj < end_i; ++pj ) {
+      j = bonds->select.bond_list[pj].nbr;
+      type_j = system->my_atoms[j].type;
+      if (type_j < 0) continue;
+
+      if( i > j && workspace->bond_mark[j] <= 3 ) {
+        bo_ij = &( bonds->select.bond_list[pj].bo_data );
+        // fprintf( stderr, "\tj:%d - ubo: %8.3f\n", j+1, bo_ij->BO );
+
         /* We only need to update bond orders from bo_ji
            everything else is set in uncorrected_bo calculations */
         sym_index = bonds->select.bond_list[pj].sym_index;
@@ -573,10 +595,10 @@ void BO( reax_system *system, control_params *control, simulation_data *data,
         workspace->total_bond_order[i] += bo_ij->BO;// now keeps total_BO
       }
     }
-
   }
 
   p_lp1 = system->reax_param.gp.l[15];
+  #pragma omp parallel for private(type_j, sbp_j)
   for( j = 0; j < system->N; ++j ){
     type_j = system->my_atoms[j].type;
     if (type_j < 0) continue;

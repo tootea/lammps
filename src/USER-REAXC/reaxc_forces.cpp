@@ -380,18 +380,8 @@ void Init_Forces_noQEq( reax_system *system, control_params *control,
                         simulation_data *data, storage *workspace,
                         reax_list **lists, output_controls *out_control,
                         MPI_Comm comm ) {
-  int i, j, pj;
-  int start_i, end_i;
-  int type_i, type_j;
-  int btop_i, btop_j, num_bonds, num_hbonds;
-  int ihb, jhb, ihb_top, jhb_top;
-  int local, flag, renbr;
-  real cutoff;
+  int i, num_bonds, num_hbonds, renbr;
   reax_list *far_nbrs, *bonds, *hbonds;
-  single_body_parameters *sbp_i, *sbp_j;
-  two_body_parameters *twbp;
-  far_neighbor_data *nbr_pj;
-  reax_atom *atom_i, *atom_j;
 
   far_nbrs = *lists + FAR_NBRS;
   bonds = *lists + BONDS;
@@ -405,10 +395,22 @@ void Init_Forces_noQEq( reax_system *system, control_params *control,
 
   num_bonds = 0;
   num_hbonds = 0;
-  btop_i = btop_j = 0;
   renbr = (data->step-data->prev_steps) % control->reneighbor == 0;
 
+  #pragma omp parallel for reduction(+: num_bonds, num_hbonds)
   for( i = 0; i < system->N; ++i ) {
+    int j, pj;
+    int start_i, end_i;
+    int type_i, type_j;
+    int btop_i = 0;
+    int ihb, jhb, ihb_top, jhb_top;
+    int local, flag, renbr;
+    real cutoff;
+    single_body_parameters *sbp_i, *sbp_j;
+    two_body_parameters *twbp;
+    far_neighbor_data *nbr_pj;
+    reax_atom *atom_i, *atom_j;
+
     atom_i = &(system->my_atoms[i]);
     type_i  = atom_i->type;
     if (type_i < 0) continue;
@@ -497,10 +499,15 @@ void Init_Forces_noQEq( reax_system *system, control_params *control,
           num_bonds += 2;
           ++btop_i;
 
-          if( workspace->bond_mark[j] > workspace->bond_mark[i] + 1 )
-            workspace->bond_mark[j] = workspace->bond_mark[i] + 1;
-          else if( workspace->bond_mark[i] > workspace->bond_mark[j] + 1 ) {
-            workspace->bond_mark[i] = workspace->bond_mark[j] + 1;
+          if (!local || j >= system->n) {
+            #pragma omp critical(bond_mark_update)
+            {
+              if( workspace->bond_mark[j] > workspace->bond_mark[i] + 1 )
+                workspace->bond_mark[j] = workspace->bond_mark[i] + 1;
+              else if( workspace->bond_mark[i] > workspace->bond_mark[j] + 1 ) {
+                workspace->bond_mark[i] = workspace->bond_mark[j] + 1;
+              }
+            }
           }
         }
       }
