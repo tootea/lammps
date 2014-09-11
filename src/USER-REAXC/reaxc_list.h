@@ -63,6 +63,16 @@ inline void Set_End_Index( int i, int val, reax_list *l )
 {
   l->end_index[i] = val;
 }
+
+inline int Next_End_Index( int i, reax_list *l )
+{
+  int end;
+
+  #pragma omp atomic capture
+  end = (l->end_index[i])++;
+
+  return end;
+}
 #endif // LAMMPS_REAX
 
 #endif

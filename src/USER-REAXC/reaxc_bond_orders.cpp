@@ -29,6 +29,7 @@
 #include "reaxc_bond_orders.h"
 #include "reaxc_list.h"
 #include "reaxc_vector.h"
+#include "reaxc_tool_box.h"
 
 void Add_dBond_to_Forces_NPT( int i, int pj, simulation_data *data,
                               storage *workspace, reax_list **lists )
@@ -258,10 +259,10 @@ void Add_dBond_to_Forces( reax_system *system, int i, int pj,
 
 
 int BOp( storage *workspace, reax_list *bonds, real bo_cut,
-         int i, int btop_i, far_neighbor_data *nbr_pj,
+         int i, far_neighbor_data *nbr_pj,
          single_body_parameters *sbp_i, single_body_parameters *sbp_j,
          two_body_parameters *twbp ) {
-  int j, btop_j;
+  int j, btop_i, btop_j;
   real r2, C12, C34, C56;
   real Cln_BOp_s, Cln_BOp_pi, Cln_BOp_pi2;
   real BO, BO_s, BO_pi, BO_pi2;
@@ -294,8 +295,9 @@ int BOp( storage *workspace, reax_list *bonds, real bo_cut,
 
   if( BO >= bo_cut ) {
     /****** bonds i-j and j-i ******/
+    btop_i = Next_End_Index( i, bonds );
     ibond = &( bonds->select.bond_list[btop_i] );
-    btop_j = End_Index( j, bonds );
+    btop_j = Next_End_Index( j, bonds );
     jbond = &(bonds->select.bond_list[btop_j]);
 
     ibond->nbr = j;
@@ -310,7 +312,6 @@ int BOp( storage *workspace, reax_list *bonds, real bo_cut,
     jbond->dbond_index = btop_i;
     ibond->sym_index = btop_j;
     jbond->sym_index = btop_i;
-    Set_End_Index( j, btop_j+1, bonds );
 
     bo_ij = &( ibond->bo_data );
     bo_ji = &( jbond->bo_data );
@@ -340,18 +341,21 @@ int BOp( storage *workspace, reax_list *bonds, real bo_cut,
                   bo_ij->BO_pi2 * Cln_BOp_pi2), ibond->dvec );
     rvec_Scale( bo_ji->dBOp, -1., bo_ij->dBOp );
 
-    rvec_Add( workspace->dDeltap_self[i], bo_ij->dBOp );
-    rvec_Add( workspace->dDeltap_self[j], bo_ji->dBOp );
-
     bo_ij->BO_s -= bo_cut;
     bo_ij->BO -= bo_cut;
     bo_ji->BO_s -= bo_cut;
     bo_ji->BO -= bo_cut;
-    workspace->total_bond_order[i] += bo_ij->BO; //currently total_BOp
-    workspace->total_bond_order[j] += bo_ji->BO; //currently total_BOp
     bo_ij->Cdbo = bo_ij->Cdbopi = bo_ij->Cdbopi2 = 0.0;
     bo_ji->Cdbo = bo_ji->Cdbopi = bo_ji->Cdbopi2 = 0.0;
 
+    Lock_Atom( workspace, i );
+    rvec_Add( workspace->dDeltap_self[i], bo_ij->dBOp );
+    workspace->total_bond_order[i] += bo_ij->BO; //currently total_BOp
+    Unlock_Atom( workspace, i );
+    Lock_Atom( workspace, j );
+    rvec_Add( workspace->dDeltap_self[j], bo_ji->dBOp );
+    workspace->total_bond_order[j] += bo_ji->BO; //currently total_BOp
+    Unlock_Atom( workspace, j );
     return 1;
   }
 

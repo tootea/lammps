@@ -209,7 +209,7 @@ real Compute_tabH( real r_ij, int ti, int tj )
   return val;
 }
 
-
+#if 0
 void Init_Forces( reax_system *system, control_params *control,
                   simulation_data *data, storage *workspace, reax_list **lists,
                   output_controls *out_control, MPI_Comm comm ) {
@@ -374,7 +374,7 @@ void Init_Forces( reax_system *system, control_params *control,
   Validate_Lists( system, workspace, lists, data->step,
                   system->n, system->N, system->numH, comm );
 }
-
+#endif
 
 void Init_Forces_noQEq( reax_system *system, control_params *control,
                         simulation_data *data, storage *workspace,
@@ -470,24 +470,17 @@ void Init_Forces_noQEq( reax_system *system, control_params *control,
             // fprintf( stderr, "%d %d\n", atom1, atom2 );
             jhb = sbp_j->p_hbond;
             if( ihb == 1 && jhb == 2 ) {
-              Lock_Atom( workspace, i );
-              ihb_top = End_Index( atom_i->Hindex, hbonds );
+              ihb_top = Next_End_Index( atom_i->Hindex, hbonds );
               hbonds->select.hbond_list[ihb_top].nbr = j;
               hbonds->select.hbond_list[ihb_top].scl = 1;
               hbonds->select.hbond_list[ihb_top].ptr = nbr_pj;
-              ++ihb_top;
-              Set_End_Index( atom_i->Hindex, ihb_top, hbonds );
-              Unlock_Atom( workspace, i );
               ++num_hbonds;
             }
             else if( j < system->n && ihb == 2 && jhb == 1 ) {
-              Lock_Atom( workspace, j );
-              jhb_top = End_Index( atom_j->Hindex, hbonds );
+              jhb_top = Next_End_Index( atom_j->Hindex, hbonds );
               hbonds->select.hbond_list[jhb_top].nbr = i;
               hbonds->select.hbond_list[jhb_top].scl = -1;
               hbonds->select.hbond_list[jhb_top].ptr = nbr_pj;
-              Set_End_Index( atom_j->Hindex, jhb_top+1, hbonds );
-              Unlock_Atom( workspace, j );
               ++num_hbonds;
             }
           }
@@ -495,21 +488,20 @@ void Init_Forces_noQEq( reax_system *system, control_params *control,
 
         if( //(workspace->bond_mark[i] < 3 || workspace->bond_mark[j] < 3) &&
             nbr_pj->d <= control->bond_cut) {
-          Lock_Pair( workspace, i, j );
-          btop_i = End_Index( i, bonds );
           if( BOp( workspace, bonds, control->bo_cut,
-                   i , btop_i, nbr_pj, sbp_i, sbp_j, twbp ) ) {
+                   i , nbr_pj, sbp_i, sbp_j, twbp ) ) {
             num_bonds += 2;
-            ++btop_i;
-            Set_End_Index( i, btop_i, bonds );
 
-            if( workspace->bond_mark[j] > workspace->bond_mark[i] + 1 )
-              workspace->bond_mark[j] = workspace->bond_mark[i] + 1;
-            else if( workspace->bond_mark[i] > workspace->bond_mark[j] + 1 ) {
-              workspace->bond_mark[i] = workspace->bond_mark[j] + 1;
+            if (!local || j >= system->n) {
+              Lock_Pair( workspace, i, j );
+              if( workspace->bond_mark[j] > workspace->bond_mark[i] + 1 )
+                workspace->bond_mark[j] = workspace->bond_mark[i] + 1;
+              else if( workspace->bond_mark[i] > workspace->bond_mark[j] + 1 ) {
+                workspace->bond_mark[i] = workspace->bond_mark[j] + 1;
+              }
+              Unlock_Pair( workspace, i, j );
             }
           }
-          Unlock_Pair( workspace, i, j );
         }
       }
     }
@@ -655,9 +647,11 @@ void Compute_Forces( reax_system *system, control_params *control,
   comm = mpi_data->world;
   qeq_flag = 0;
 
+#if 0
   if( qeq_flag )
     Init_Forces( system, control, data, workspace, lists, out_control, comm );
   else
+#endif
     Init_Forces_noQEq( system, control, data, workspace,
                        lists, out_control, comm );
 
