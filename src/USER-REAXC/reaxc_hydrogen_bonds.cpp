@@ -30,6 +30,7 @@
 #include "reaxc_list.h"
 #include "reaxc_valence_angles.h"
 #include "reaxc_vector.h"
+#include "reaxc_tool_box.h"
 
 void Hydrogen_Bonds( reax_system *system, control_params *control,
                      simulation_data *data, storage *workspace,
@@ -39,13 +40,17 @@ void Hydrogen_Bonds( reax_system *system, control_params *control,
   reax_list *bonds, *hbonds;
   bond_data *bond_list;
   hbond_data *hbond_list;
+  real ext_press_x, ext_press_y, ext_press_z, e_hb_sum;
 
   bonds = (*lists) + BONDS;
   bond_list = bonds->select.bond_list;
   hbonds = (*lists) + HBONDS;
   hbond_list = hbonds->select.hbond_list;
 
-  #pragma omp parallel for
+  ext_press_x = ext_press_y = ext_press_z = 0.0;
+  e_hb_sum = 0.0;
+
+  #pragma omp parallel for reduction(+: ext_press_x, ext_press_y, ext_press_z, e_hb_sum)
   for( j = 0; j < system->n; ++j ) {
     int  i, k, pi, pk;
     int  type_i, type_j, type_k;
@@ -56,7 +61,7 @@ void Hydrogen_Bonds( reax_system *system, control_params *control,
     real r_jk, theta, cos_theta, sin_xhz4, cos_xhz1;
     real e_hb, exp_hb2, exp_hb3, CEhb1, CEhb2, CEhb3;
     rvec dcos_theta_di, dcos_theta_dj, dcos_theta_dk;
-    rvec dvec_jk, force, ext_press;
+    rvec dvec_jk, force, ext_press, fj_sum, fk_sum;
     hbond_parameters *hbp;
     bond_order_data *bo_ij;
     bond_data *pbond_ij;
@@ -72,6 +77,7 @@ void Hydrogen_Bonds( reax_system *system, control_params *control,
       hb_start_j = Start_Index( system->my_atoms[j].Hindex, hbonds );
       hb_end_j   = End_Index( system->my_atoms[j].Hindex, hbonds );
       if (type_j < 0) continue;
+      rvec_MakeZero( fj_sum );
 
       top = 0;
       for( pi = start_j; pi < end_j; ++pi )  {
@@ -94,6 +100,7 @@ void Hydrogen_Bonds( reax_system *system, control_params *control,
         nbr_jk = hbond_list[pk].ptr;
         r_jk = nbr_jk->d;
         rvec_Scale( dvec_jk, hbond_list[pk].scl, nbr_jk->dvec );
+        rvec_MakeZero( fk_sum );
 
         for( itr = 0; itr < top; ++itr ) {
           pi = hblist[itr];
@@ -127,61 +134,79 @@ void Hydrogen_Bonds( reax_system *system, control_params *control,
             CEhb3 = -hbp->p_hb3 *
               (-hbp->r0_hb / SQR(r_jk) + 1.0 / hbp->r0_hb) * e_hb;
 
-            #pragma omp critical(tally_results)
-            {
-              data->my_en.e_hb += e_hb;
+            e_hb_sum += e_hb;
 
-              /* hydrogen bond forces */
-              bo_ij->Cdbo += CEhb1; // dbo term
+            /* hydrogen bond forces */
+            bo_ij->Cdbo += CEhb1; // dbo term
 
-              if( control->virial == 0 ) {
-                // dcos terms
-                rvec_ScaledAdd( workspace->f[i], +CEhb2, dcos_theta_di );
-                rvec_ScaledAdd( workspace->f[j], +CEhb2, dcos_theta_dj );
-                rvec_ScaledAdd( workspace->f[k], +CEhb2, dcos_theta_dk );
-                // dr terms
-                rvec_ScaledAdd( workspace->f[j], -CEhb3/r_jk, dvec_jk );
-                rvec_ScaledAdd( workspace->f[k], +CEhb3/r_jk, dvec_jk );
-              }
-              else {
-                rvec_Scale( force, +CEhb2, dcos_theta_di ); // dcos terms
-                rvec_Add( workspace->f[i], force );
-                rvec_iMultiply( ext_press, pbond_ij->rel_box, force );
-                rvec_ScaledAdd( data->my_ext_press, 1.0, ext_press );
+            if( control->virial == 0 ) {
+              // dcos terms
+              Lock_Atom( workspace, i );
+              rvec_ScaledAdd( workspace->f[i], +CEhb2, dcos_theta_di );
+              Unlock_Atom( workspace, i );
+              rvec_ScaledAdd( fj_sum, +CEhb2, dcos_theta_dj );
+              rvec_ScaledAdd( fk_sum, +CEhb2, dcos_theta_dk );
+              // dr terms
+              rvec_ScaledAdd( fj_sum, -CEhb3/r_jk, dvec_jk );
+              rvec_ScaledAdd( fk_sum, +CEhb3/r_jk, dvec_jk );
+            }
+            else {
+              rvec_Scale( force, +CEhb2, dcos_theta_di ); // dcos terms
+              Lock_Atom( workspace, i );
+              rvec_Add( workspace->f[i], force );
+              Unlock_Atom( workspace, i );
+              rvec_iMultiply( ext_press, pbond_ij->rel_box, force );
+              rvec_AddToComponents( ext_press_x, ext_press_y, ext_press_z, ext_press );
 
-                rvec_ScaledAdd( workspace->f[j], +CEhb2, dcos_theta_dj );
+              rvec_ScaledAdd( fj_sum, +CEhb2, dcos_theta_dj );
 
-                ivec_Scale( rel_jk, hbond_list[pk].scl, nbr_jk->rel_box );
-                rvec_Scale( force, +CEhb2, dcos_theta_dk );
-                rvec_Add( workspace->f[k], force );
-                rvec_iMultiply( ext_press, rel_jk, force );
-                rvec_ScaledAdd( data->my_ext_press, 1.0, ext_press );
-                // dr terms
-                rvec_ScaledAdd( workspace->f[j], -CEhb3/r_jk, dvec_jk );
+              ivec_Scale( rel_jk, hbond_list[pk].scl, nbr_jk->rel_box );
+              rvec_Scale( force, +CEhb2, dcos_theta_dk );
+              rvec_Add( fk_sum, force );
+              rvec_iMultiply( ext_press, rel_jk, force );
+              rvec_AddToComponents( ext_press_x, ext_press_y, ext_press_z, ext_press );
+              // dr terms
+              rvec_ScaledAdd( fj_sum, -CEhb3/r_jk, dvec_jk );
 
-                rvec_Scale( force, CEhb3/r_jk, dvec_jk );
-                rvec_Add( workspace->f[k], force );
-                rvec_iMultiply( ext_press, rel_jk, force );
-                rvec_ScaledAdd( data->my_ext_press, 1.0, ext_press );
-              }
+              rvec_Scale( force, CEhb3/r_jk, dvec_jk );
+              rvec_Add( fk_sum, force );
+              rvec_iMultiply( ext_press, rel_jk, force );
+              rvec_AddToComponents( ext_press_x, ext_press_y, ext_press_z, ext_press );
+            }
 
-              /* tally into per-atom virials */
-              if (system->pair_ptr->vflag_atom || system->pair_ptr->evflag) {
-                rvec_ScaledSum( delij, 1., system->my_atoms[j].x,
-                                      -1., system->my_atoms[i].x );
-                rvec_ScaledSum( delkj, 1., system->my_atoms[j].x,
-                                       -1., system->my_atoms[k].x );
+            /* tally into per-atom virials */
+            if (system->pair_ptr->vflag_atom || system->pair_ptr->evflag) {
+              rvec_ScaledSum( delij, 1., system->my_atoms[j].x,
+                                    -1., system->my_atoms[i].x );
+              rvec_ScaledSum( delkj, 1., system->my_atoms[j].x,
+                                      -1., system->my_atoms[k].x );
 
-                rvec_Scale(fi_tmp, CEhb2, dcos_theta_di);
-                rvec_Scale(fk_tmp, CEhb2, dcos_theta_dk);
-                rvec_ScaledAdd(fk_tmp, CEhb3/r_jk, dvec_jk);
+              rvec_Scale(fi_tmp, CEhb2, dcos_theta_di);
+              rvec_Scale(fk_tmp, CEhb2, dcos_theta_dk);
+              rvec_ScaledAdd(fk_tmp, CEhb3/r_jk, dvec_jk);
 
+              #pragma omp critical(tally_virial)
+              {
                 system->pair_ptr->ev_tally3(i,j,k,e_hb,0.0,fi_tmp,fk_tmp,delij,delkj);
               }
             }
           }
         }
+
+        Lock_Atom( workspace, k );
+        rvec_Add( workspace->f[k], fk_sum );
+        Unlock_Atom( workspace, k );
       }
+
+      Lock_Atom( workspace, j );
+      rvec_Add( workspace->f[j], fj_sum );
+      Unlock_Atom( workspace, j );
     }
+  }
+
+  data->my_en.e_hb += e_hb_sum;
+
+  if (control->virial != 0) {
+    rvec_AddFromComponents( data->my_ext_press, ext_press_x, ext_press_y, ext_press_z );
   }
 }

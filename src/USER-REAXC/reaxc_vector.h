@@ -47,6 +47,15 @@ static void rvec_Add( rvec ret, rvec v )
   ret[0] += v[0], ret[1] += v[1], ret[2] += v[2];
 }
 
+static void rvec_AddToComponents( real x, real y, real z, rvec v )
+{
+  x += v[0], y += v[1], z += v[2];
+}
+
+static void rvec_AddFromComponents( rvec ret, real x, real y, real z )
+{
+  ret[0] += x, ret[1] += y, ret[2] += z;
+}
 
 static void rvec_ScaledAdd( rvec ret, real c, rvec v )
 {
