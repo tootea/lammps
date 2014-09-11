@@ -87,34 +87,38 @@ inline void Destroy_Locks( storage *workspace )
 inline void Lock_Atom( storage *workspace, int i )
 {
   omp_set_lock( &(workspace->atom_lock[i]) );
+  #pragma omp flush
 }
 
 inline void Unlock_Atom( storage *workspace, int i )
 {
+  #pragma omp flush
   omp_unset_lock( &(workspace->atom_lock[i]) );
 }
 
 inline void Lock_Pair( storage *workspace, int i, int j )
 {
   if (i < j) {
-    Lock_Atom(workspace, i);
-    Lock_Atom(workspace, j);
+    omp_set_lock( &(workspace->atom_lock[i]) );
+    omp_set_lock( &(workspace->atom_lock[j]) );
   }
   else {
-    Lock_Atom(workspace, j);
-    Lock_Atom(workspace, i);
+    omp_set_lock( &(workspace->atom_lock[j]) );
+    omp_set_lock( &(workspace->atom_lock[i]) );
   }
+  #pragma omp flush
 }
 
 inline void Unlock_Pair( storage *workspace, int i, int j )
 {
+  #pragma omp flush
   if (i < j) {
-    Unlock_Atom(workspace, j);
-    Unlock_Atom(workspace, i);
+    omp_unset_lock( &(workspace->atom_lock[j]) );
+    omp_unset_lock( &(workspace->atom_lock[i]) );
   }
   else {
-    Unlock_Atom(workspace, i);
-    Unlock_Atom(workspace, j);
+    omp_unset_lock( &(workspace->atom_lock[i]) );
+    omp_unset_lock( &(workspace->atom_lock[j]) );
   }
 }
 

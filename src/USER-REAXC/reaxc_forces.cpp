@@ -489,7 +489,7 @@ void Init_Forces_noQEq( reax_system *system, control_params *control,
         if( //(workspace->bond_mark[i] < 3 || workspace->bond_mark[j] < 3) &&
             nbr_pj->d <= control->bond_cut) {
           if( BOp( workspace, bonds, control->bo_cut,
-                   i , nbr_pj, sbp_i, sbp_j, twbp ) ) {
+                   i, nbr_pj, sbp_i, sbp_j, twbp ) ) {
             num_bonds += 2;
 
             if (!local || j >= system->n) {
