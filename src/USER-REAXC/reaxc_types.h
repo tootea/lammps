@@ -32,6 +32,7 @@
 #include "ctype.h"
 #include "math.h"
 #include "mpi.h"
+#include "omp.h"
 #include "stdio.h"
 #include "stdlib.h"
 #include "string.h"
@@ -657,6 +658,9 @@ typedef struct
   rvec *f;
 
   reallocate_data realloc;
+
+  int num_locks;
+  omp_lock_t *atom_lock;
 } storage;
 
 

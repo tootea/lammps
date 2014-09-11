@@ -182,6 +182,8 @@ void DeAllocate_Workspace( control_params *control, storage *workspace )
   sfree( workspace->f, "f" );
   sfree( workspace->CdDelta, "CdDelta" );
 
+  Destroy_Locks( workspace );
+  sfree( workspace->atom_lock, "atom_lock" );
 }
 
 
@@ -277,6 +279,9 @@ int Allocate_Workspace( reax_system *system, control_params *control,
   workspace->f = (rvec*) scalloc( total_cap, sizeof(rvec), "f", comm );
   workspace->CdDelta = (real*)
     scalloc( total_cap, sizeof(real), "CdDelta", comm );
+
+  workspace->atom_lock = (omp_lock_t*) smalloc( total_cap * sizeof(omp_lock_t), "atom_lock", comm );
+  Init_Locks( system, workspace );
 
   return SUCCESS;
 }

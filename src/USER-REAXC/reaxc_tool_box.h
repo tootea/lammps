@@ -65,4 +65,57 @@ void *smalloc( long, const char*, MPI_Comm );
 void *scalloc( int, int, const char*, MPI_Comm );
 void sfree( void*, const char* );
 
+inline void Init_Locks( reax_system *system, storage *workspace )
+{
+  int i;
+
+  workspace->num_locks = system->total_cap;
+  for( i = 0; i < workspace->num_locks; ++i ) {
+    omp_init_lock( &(workspace->atom_lock[i]) );
+  }
+}
+
+inline void Destroy_Locks( storage *workspace )
+{
+  int i;
+
+  for( i = 0; i < workspace->num_locks; ++i ) {
+    omp_destroy_lock( &(workspace->atom_lock[i]) );
+  }
+}
+
+inline void Lock_Atom( storage *workspace, int i )
+{
+  omp_set_lock( &(workspace->atom_lock[i]) );
+}
+
+inline void Unlock_Atom( storage *workspace, int i )
+{
+  omp_unset_lock( &(workspace->atom_lock[i]) );
+}
+
+inline void Lock_Pair( storage *workspace, int i, int j )
+{
+  if (i < j) {
+    Lock_Atom(workspace, i);
+    Lock_Atom(workspace, j);
+  }
+  else {
+    Lock_Atom(workspace, j);
+    Lock_Atom(workspace, i);
+  }
+}
+
+inline void Unlock_Pair( storage *workspace, int i, int j )
+{
+  if (i < j) {
+    Unlock_Atom(workspace, j);
+    Unlock_Atom(workspace, i);
+  }
+  else {
+    Unlock_Atom(workspace, i);
+    Unlock_Atom(workspace, j);
+  }
+}
+
 #endif

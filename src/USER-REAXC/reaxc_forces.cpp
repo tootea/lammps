@@ -404,7 +404,7 @@ void Init_Forces_noQEq( reax_system *system, control_params *control,
     int type_i, type_j;
     int btop_i = 0;
     int ihb, jhb, ihb_top, jhb_top;
-    int local, flag, renbr;
+    int local, flag;
     real cutoff;
     single_body_parameters *sbp_i, *sbp_j;
     two_body_parameters *twbp;
@@ -416,7 +416,6 @@ void Init_Forces_noQEq( reax_system *system, control_params *control,
     if (type_i < 0) continue;
     start_i = Start_Index(i, far_nbrs);
     end_i   = End_Index(i, far_nbrs);
-    btop_i = End_Index( i, bonds );
     sbp_i = &(system->reax_param.sbp[type_i]);
 
     if( i < system->n ) {
@@ -429,12 +428,8 @@ void Init_Forces_noQEq( reax_system *system, control_params *control,
     }
 
     ihb = -1;
-    ihb_top = -1;
     if( local && control->hbond_cut > 0 ) {
       ihb = sbp_i->p_hbond;
-      if( ihb == 1 )
-        ihb_top = End_Index( atom_i->Hindex, hbonds );
-      else ihb_top = -1;
     }
 
     /* update i-j distance - check if j is within cutoff */
@@ -475,47 +470,49 @@ void Init_Forces_noQEq( reax_system *system, control_params *control,
             // fprintf( stderr, "%d %d\n", atom1, atom2 );
             jhb = sbp_j->p_hbond;
             if( ihb == 1 && jhb == 2 ) {
+              Lock_Atom( workspace, i );
+              ihb_top = End_Index( atom_i->Hindex, hbonds );
               hbonds->select.hbond_list[ihb_top].nbr = j;
               hbonds->select.hbond_list[ihb_top].scl = 1;
               hbonds->select.hbond_list[ihb_top].ptr = nbr_pj;
               ++ihb_top;
+              Set_End_Index( atom_i->Hindex, ihb_top, hbonds );
+              Unlock_Atom( workspace, i );
               ++num_hbonds;
             }
             else if( j < system->n && ihb == 2 && jhb == 1 ) {
+              Lock_Atom( workspace, j );
               jhb_top = End_Index( atom_j->Hindex, hbonds );
               hbonds->select.hbond_list[jhb_top].nbr = i;
               hbonds->select.hbond_list[jhb_top].scl = -1;
               hbonds->select.hbond_list[jhb_top].ptr = nbr_pj;
               Set_End_Index( atom_j->Hindex, jhb_top+1, hbonds );
+              Unlock_Atom( workspace, j );
               ++num_hbonds;
             }
           }
         }
 
         if( //(workspace->bond_mark[i] < 3 || workspace->bond_mark[j] < 3) &&
-            nbr_pj->d <= control->bond_cut &&
-            BOp( workspace, bonds, control->bo_cut,
-                 i , btop_i, nbr_pj, sbp_i, sbp_j, twbp ) ) {
-          num_bonds += 2;
-          ++btop_i;
+            nbr_pj->d <= control->bond_cut) {
+          Lock_Pair( workspace, i, j );
+          btop_i = End_Index( i, bonds );
+          if( BOp( workspace, bonds, control->bo_cut,
+                   i , btop_i, nbr_pj, sbp_i, sbp_j, twbp ) ) {
+            num_bonds += 2;
+            ++btop_i;
+            Set_End_Index( i, btop_i, bonds );
 
-          if (!local || j >= system->n) {
-            #pragma omp critical(bond_mark_update)
-            {
-              if( workspace->bond_mark[j] > workspace->bond_mark[i] + 1 )
-                workspace->bond_mark[j] = workspace->bond_mark[i] + 1;
-              else if( workspace->bond_mark[i] > workspace->bond_mark[j] + 1 ) {
-                workspace->bond_mark[i] = workspace->bond_mark[j] + 1;
-              }
+            if( workspace->bond_mark[j] > workspace->bond_mark[i] + 1 )
+              workspace->bond_mark[j] = workspace->bond_mark[i] + 1;
+            else if( workspace->bond_mark[i] > workspace->bond_mark[j] + 1 ) {
+              workspace->bond_mark[i] = workspace->bond_mark[j] + 1;
             }
           }
+          Unlock_Pair( workspace, i, j );
         }
       }
     }
-
-    Set_End_Index( i, btop_i, bonds );
-    if( local && ihb == 1 )
-      Set_End_Index( atom_i->Hindex, ihb_top, hbonds );
   }
 
 
