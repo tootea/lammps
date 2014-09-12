@@ -244,180 +244,182 @@ void Valence_Angles( reax_system *system, control_params *control,
           type_k   = system->my_atoms[k].type;
           p_ijk    = &( thb_intrs->select.three_body_list[num_thb_intrs] );
 
-          Calculate_Theta( pbond_ij->dvec, pbond_ij->d,
-                           pbond_jk->dvec, pbond_jk->d,
-                           &theta, &cos_theta );
-
-          Calculate_dCos_Theta( pbond_ij->dvec, pbond_ij->d,
-                                pbond_jk->dvec, pbond_jk->d,
-                                &(p_ijk->dcos_di), &(p_ijk->dcos_dj),
-                                &(p_ijk->dcos_dk) );
-          p_ijk->thb = k;
-          p_ijk->pthb = pk;
-          p_ijk->theta = theta;
-          p_ijk->cos_theta = cos_theta;
-
-          sin_theta = Calculate_Sin_Theta( pbond_ij->dvec, pbond_ij->d,
-                                           pbond_jk->dvec, pbond_jk->d );
-          p_ijk->sin_theta = sin_theta;
-
-          ++num_thb_intrs;
-
-          if( (j < system->n) && (BOA_jk > 0.0) &&
+          if( (BOA_jk > 0.0) &&
               (bo_ij->BO > control->thb_cut) &&
-              (bo_jk->BO > control->thb_cut) &&
-              (bo_ij->BO * bo_jk->BO > control->thb_cutsq) ) {
-            thbh = &( system->reax_param.thbp[ type_i ][ type_j ][ type_k ] );
+              (bo_jk->BO > control->thb_cut) ) {
+            Calculate_Theta( pbond_ij->dvec, pbond_ij->d,
+                            pbond_jk->dvec, pbond_jk->d,
+                            &theta, &cos_theta );
 
-            if( sin_theta < 1.0e-5 )
-              sin_theta = 1.0e-5;
+            Calculate_dCos_Theta( pbond_ij->dvec, pbond_ij->d,
+                                  pbond_jk->dvec, pbond_jk->d,
+                                  &(p_ijk->dcos_di), &(p_ijk->dcos_dj),
+                                  &(p_ijk->dcos_dk) );
+            p_ijk->thb = k;
+            p_ijk->pthb = pk;
+            p_ijk->theta = theta;
+            p_ijk->cos_theta = cos_theta;
 
-            for( cnt = 0; cnt < thbh->cnt; ++cnt ) {
-              if( fabs(thbh->prm[cnt].p_val1) > 0.001 ) {
-                thbp = &( thbh->prm[cnt] );
+            sin_theta = Calculate_Sin_Theta( pbond_ij->dvec, pbond_ij->d,
+                                            pbond_jk->dvec, pbond_jk->d );
+            p_ijk->sin_theta = sin_theta;
 
-                /* ANGLE ENERGY */
-                p_val1 = thbp->p_val1;
-                p_val2 = thbp->p_val2;
-                p_val4 = thbp->p_val4;
-                p_val7 = thbp->p_val7;
-                theta_00 = thbp->theta_00;
+            ++num_thb_intrs;
 
-                temp = pow( BOA_ij, p_val4 );
-                exp3ij = exp( -p_val3 * temp );
-                f7_ij = 1.0 - exp3ij;
-                Cf7ij = p_val3 * p_val4 * exp3ij * temp / BOA_ij;
+            if( (j < system->n) &&
+                (bo_ij->BO * bo_jk->BO > control->thb_cutsq) ) {
+              thbh = &( system->reax_param.thbp[ type_i ][ type_j ][ type_k ] );
 
-                temp = pow( BOA_jk, p_val4 );
-                exp3jk = exp( -p_val3 * temp );
-                f7_jk = 1.0 - exp3jk;
-                Cf7jk = p_val3 * p_val4 * exp3jk * temp / BOA_jk;
+              if( sin_theta < 1.0e-5 )
+                sin_theta = 1.0e-5;
 
-                expval7 = exp( -p_val7 * workspace->Delta_boc[j] );
-                trm8 = 1.0 + expval6 + expval7;
-                f8_Dj = p_val5 - ( (p_val5 - 1.0) * (2.0 + expval6) / trm8 );
-                Cf8j = ( (1.0 - p_val5) / SQR(trm8) ) *
-                  ( p_val6 * expval6 * trm8 -
-                    (2.0 + expval6) * ( p_val6*expval6 - p_val7*expval7 ) );
+              for( cnt = 0; cnt < thbh->cnt; ++cnt ) {
+                if( fabs(thbh->prm[cnt].p_val1) > 0.001 ) {
+                  thbp = &( thbh->prm[cnt] );
 
-                theta_0 = 180.0 - theta_00 * (1.0 - expval10SBO2);
-                theta_0 = DEG2RAD( theta_0 );
+                  /* ANGLE ENERGY */
+                  p_val1 = thbp->p_val1;
+                  p_val2 = thbp->p_val2;
+                  p_val4 = thbp->p_val4;
+                  p_val7 = thbp->p_val7;
+                  theta_00 = thbp->theta_00;
 
-                expval2theta  = exp( -p_val2 * SQR(theta_0 - theta) );
-                if( p_val1 >= 0 )
-                  expval12theta = p_val1 * (1.0 - expval2theta);
-                else // To avoid linear Me-H-Me angles (6/6/06)
-                  expval12theta = p_val1 * -expval2theta;
+                  temp = pow( BOA_ij, p_val4 );
+                  exp3ij = exp( -p_val3 * temp );
+                  f7_ij = 1.0 - exp3ij;
+                  Cf7ij = p_val3 * p_val4 * exp3ij * temp / BOA_ij;
 
-                CEval1 = Cf7ij * f7_jk * f8_Dj * expval12theta;
-                CEval2 = Cf7jk * f7_ij * f8_Dj * expval12theta;
-                CEval3 = Cf8j  * f7_ij * f7_jk * expval12theta;
-                CEval4 = -2.0 * p_val1 * p_val2 * f7_ij * f7_jk * f8_Dj *
-                  expval2theta * (theta_0 - theta);
+                  temp = pow( BOA_jk, p_val4 );
+                  exp3jk = exp( -p_val3 * temp );
+                  f7_jk = 1.0 - exp3jk;
+                  Cf7jk = p_val3 * p_val4 * exp3jk * temp / BOA_jk;
 
-                Ctheta_0 = p_val10 * DEG2RAD(theta_00) * expval10SBO2;
+                  expval7 = exp( -p_val7 * workspace->Delta_boc[j] );
+                  trm8 = 1.0 + expval6 + expval7;
+                  f8_Dj = p_val5 - ( (p_val5 - 1.0) * (2.0 + expval6) / trm8 );
+                  Cf8j = ( (1.0 - p_val5) / SQR(trm8) ) *
+                    ( p_val6 * expval6 * trm8 -
+                      (2.0 + expval6) * ( p_val6*expval6 - p_val7*expval7 ) );
 
-                CEval5 = -CEval4 * Ctheta_0 * CSBO2;
-                CEval6 = CEval5 * dSBO1;
-                CEval7 = CEval5 * dSBO2;
-                CEval8 = -CEval4 / sin_theta;
+                  theta_0 = 180.0 - theta_00 * (1.0 - expval10SBO2);
+                  theta_0 = DEG2RAD( theta_0 );
 
-                data->my_en.e_ang += e_ang =
-                  f7_ij * f7_jk * f8_Dj * expval12theta;
-                /* END ANGLE ENERGY*/
+                  expval2theta  = exp( -p_val2 * SQR(theta_0 - theta) );
+                  if( p_val1 >= 0 )
+                    expval12theta = p_val1 * (1.0 - expval2theta);
+                  else // To avoid linear Me-H-Me angles (6/6/06)
+                    expval12theta = p_val1 * -expval2theta;
 
-                /* PENALTY ENERGY */
-                p_pen1 = thbp->p_pen1;
+                  CEval1 = Cf7ij * f7_jk * f8_Dj * expval12theta;
+                  CEval2 = Cf7jk * f7_ij * f8_Dj * expval12theta;
+                  CEval3 = Cf8j  * f7_ij * f7_jk * expval12theta;
+                  CEval4 = -2.0 * p_val1 * p_val2 * f7_ij * f7_jk * f8_Dj *
+                    expval2theta * (theta_0 - theta);
 
-                exp_pen2ij = bo_ij->exp_pen2;
-                exp_pen2jk = bo_jk->exp_pen2;
+                  Ctheta_0 = p_val10 * DEG2RAD(theta_00) * expval10SBO2;
 
-                data->my_en.e_pen += e_pen =
-                  p_pen1 * f9_Dj * exp_pen2ij * exp_pen2jk;
+                  CEval5 = -CEval4 * Ctheta_0 * CSBO2;
+                  CEval6 = CEval5 * dSBO1;
+                  CEval7 = CEval5 * dSBO2;
+                  CEval8 = -CEval4 / sin_theta;
 
-                CEpen1 = e_pen * Cf9j / f9_Dj;
-                temp   = -2.0 * p_pen2 * e_pen;
-                CEpen2 = temp * (BOA_ij - 2.0);
-                CEpen3 = temp * (BOA_jk - 2.0);
-                /* END PENALTY ENERGY */
+                  data->my_en.e_ang += e_ang =
+                    f7_ij * f7_jk * f8_Dj * expval12theta;
+                  /* END ANGLE ENERGY*/
 
-                /* COALITION ENERGY */
-                p_coa1 = thbp->p_coa1;
+                  /* PENALTY ENERGY */
+                  p_pen1 = thbp->p_pen1;
 
-                data->my_en.e_coa += e_coa =
-                  p_coa1 / (1. + exp_coa2) *
-                  exp(
-                    trm_coa34_ij +
-                    -p_coa3 * SQR(workspace->total_bond_order[k]-BOA_jk) +
-                    -p_coa4 * SQR(BOA_jk - 1.5)
-                  );
+                  exp_pen2ij = bo_ij->exp_pen2;
+                  exp_pen2jk = bo_jk->exp_pen2;
 
-                CEcoa1 = -2 * p_coa4 * (BOA_ij - 1.5) * e_coa;
-                CEcoa2 = -2 * p_coa4 * (BOA_jk - 1.5) * e_coa;
-                CEcoa3 = -p_coa2 * exp_coa2 * e_coa / (1 + exp_coa2);
-                CEcoa4 = -2 * p_coa3 *
-                  (workspace->total_bond_order[i]-BOA_ij) * e_coa;
-                CEcoa5 = -2 * p_coa3 *
-                  (workspace->total_bond_order[k]-BOA_jk) * e_coa;
-                /* END COALITION ENERGY */
+                  data->my_en.e_pen += e_pen =
+                    p_pen1 * f9_Dj * exp_pen2ij * exp_pen2jk;
 
-                /* FORCES */
-                bo_ij->Cdbo += (CEval1 + CEpen2 + (CEcoa1 - CEcoa4));
-                bo_jk->Cdbo += (CEval2 + CEpen3 + (CEcoa2 - CEcoa5));
-                workspace->CdDelta[j] += ((CEval3 + CEval7) + CEpen1 + CEcoa3);
-                workspace->CdDelta[i] += CEcoa4;
-                workspace->CdDelta[k] += CEcoa5;
+                  CEpen1 = e_pen * Cf9j / f9_Dj;
+                  temp   = -2.0 * p_pen2 * e_pen;
+                  CEpen2 = temp * (BOA_ij - 2.0);
+                  CEpen3 = temp * (BOA_jk - 2.0);
+                  /* END PENALTY ENERGY */
 
-                for( t = start_j; t < end_j; ++t ) {
-                    pbond_jt = &( bonds->select.bond_list[t] );
-                    bo_jt = &(pbond_jt->bo_data);
-                    temp_bo_jt = bo_jt->BO;
-                    temp = CUBE( temp_bo_jt );
-                    pBOjt7 = temp * temp * temp_bo_jt;
+                  /* COALITION ENERGY */
+                  p_coa1 = thbp->p_coa1;
 
-                    bo_jt->Cdbo += (CEval6 * pBOjt7);
-                    bo_jt->Cdbopi += CEval5;
-                    bo_jt->Cdbopi2 += CEval5;
-                }
+                  data->my_en.e_coa += e_coa =
+                    p_coa1 / (1. + exp_coa2) *
+                    exp(
+                      trm_coa34_ij +
+                      -p_coa3 * SQR(workspace->total_bond_order[k]-BOA_jk) +
+                      -p_coa4 * SQR(BOA_jk - 1.5)
+                    );
 
-                if( control->virial == 0 ) {
-                  rvec_ScaledAdd( workspace->f[i], CEval8, p_ijk->dcos_di );
-                  rvec_ScaledAdd( workspace->f[j], CEval8, p_ijk->dcos_dj );
-                  rvec_ScaledAdd( workspace->f[k], CEval8, p_ijk->dcos_dk );
-                }
-                else {
-                  rvec_Scale( force, CEval8, p_ijk->dcos_di );
-                  rvec_Add( workspace->f[i], force );
-                  rvec_iMultiply( ext_press, pbond_ij->rel_box, force );
-                  rvec_Add( data->my_ext_press, ext_press );
+                  CEcoa1 = -2 * p_coa4 * (BOA_ij - 1.5) * e_coa;
+                  CEcoa2 = -2 * p_coa4 * (BOA_jk - 1.5) * e_coa;
+                  CEcoa3 = -p_coa2 * exp_coa2 * e_coa / (1 + exp_coa2);
+                  CEcoa4 = -2 * p_coa3 *
+                    (workspace->total_bond_order[i]-BOA_ij) * e_coa;
+                  CEcoa5 = -2 * p_coa3 *
+                    (workspace->total_bond_order[k]-BOA_jk) * e_coa;
+                  /* END COALITION ENERGY */
 
-                  rvec_ScaledAdd( workspace->f[j], CEval8, p_ijk->dcos_dj );
+                  /* FORCES */
+                  bo_ij->Cdbo += (CEval1 + CEpen2 + (CEcoa1 - CEcoa4));
+                  bo_jk->Cdbo += (CEval2 + CEpen3 + (CEcoa2 - CEcoa5));
+                  workspace->CdDelta[j] += ((CEval3 + CEval7) + CEpen1 + CEcoa3);
+                  workspace->CdDelta[i] += CEcoa4;
+                  workspace->CdDelta[k] += CEcoa5;
 
-                  rvec_Scale( force, CEval8, p_ijk->dcos_dk );
-                  rvec_Add( workspace->f[k], force );
-                  rvec_iMultiply( ext_press, pbond_jk->rel_box, force );
-                  rvec_Add( data->my_ext_press, ext_press );
-                }
+                  for( t = start_j; t < end_j; ++t ) {
+                      pbond_jt = &( bonds->select.bond_list[t] );
+                      bo_jt = &(pbond_jt->bo_data);
+                      temp_bo_jt = bo_jt->BO;
+                      temp = CUBE( temp_bo_jt );
+                      pBOjt7 = temp * temp * temp_bo_jt;
 
-                /* tally into per-atom virials */
-                if( system->pair_ptr->vflag_atom || system->pair_ptr->evflag) {
+                      bo_jt->Cdbo += (CEval6 * pBOjt7);
+                      bo_jt->Cdbopi += CEval5;
+                      bo_jt->Cdbopi2 += CEval5;
+                  }
 
-                  /* Acquire vectors */
-                  rvec_ScaledSum( delij, 1., system->my_atoms[i].x,
-                                        -1., system->my_atoms[j].x );
-                  rvec_ScaledSum( delkj, 1., system->my_atoms[k].x,
-                                        -1., system->my_atoms[j].x );
+                  if( control->virial == 0 ) {
+                    rvec_ScaledAdd( workspace->f[i], CEval8, p_ijk->dcos_di );
+                    rvec_ScaledAdd( workspace->f[j], CEval8, p_ijk->dcos_dj );
+                    rvec_ScaledAdd( workspace->f[k], CEval8, p_ijk->dcos_dk );
+                  }
+                  else {
+                    rvec_Scale( force, CEval8, p_ijk->dcos_di );
+                    rvec_Add( workspace->f[i], force );
+                    rvec_iMultiply( ext_press, pbond_ij->rel_box, force );
+                    rvec_Add( data->my_ext_press, ext_press );
 
-                  rvec_Scale( fi_tmp, -CEval8, p_ijk->dcos_di );
-                  rvec_Scale( fj_tmp, -CEval8, p_ijk->dcos_dj );
-                  rvec_Scale( fk_tmp, -CEval8, p_ijk->dcos_dk );
+                    rvec_ScaledAdd( workspace->f[j], CEval8, p_ijk->dcos_dj );
 
-                  eng_tmp = e_ang + e_pen + e_coa;
+                    rvec_Scale( force, CEval8, p_ijk->dcos_dk );
+                    rvec_Add( workspace->f[k], force );
+                    rvec_iMultiply( ext_press, pbond_jk->rel_box, force );
+                    rvec_Add( data->my_ext_press, ext_press );
+                  }
 
-                  if( system->pair_ptr->evflag)
-                          system->pair_ptr->ev_tally(j,j,system->N,1,eng_tmp,0.0,0.0,0.0,0.0,0.0);
-                  if( system->pair_ptr->vflag_atom)
-                          system->pair_ptr->v_tally3(i,j,k,fi_tmp,fk_tmp,delij,delkj);
+                  /* tally into per-atom virials */
+                  if( system->pair_ptr->vflag_atom || system->pair_ptr->evflag) {
+
+                    /* Acquire vectors */
+                    rvec_ScaledSum( delij, 1., system->my_atoms[i].x,
+                                          -1., system->my_atoms[j].x );
+                    rvec_ScaledSum( delkj, 1., system->my_atoms[k].x,
+                                          -1., system->my_atoms[j].x );
+
+                    rvec_Scale( fi_tmp, -CEval8, p_ijk->dcos_di );
+                    rvec_Scale( fj_tmp, -CEval8, p_ijk->dcos_dj );
+                    rvec_Scale( fk_tmp, -CEval8, p_ijk->dcos_dk );
+
+                    eng_tmp = e_ang + e_pen + e_coa;
+
+                    if( system->pair_ptr->evflag)
+                            system->pair_ptr->ev_tally(j,j,system->N,1,eng_tmp,0.0,0.0,0.0,0.0,0.0);
+                    if( system->pair_ptr->vflag_atom)
+                            system->pair_ptr->v_tally3(i,j,k,fi_tmp,fk_tmp,delij,delkj);
+                  }
                 }
               }
             }
