@@ -203,9 +203,7 @@ void Valence_Angles( reax_system *system, control_params *control,
       bo_ij = &(pbond_ij->bo_data);
       BOA_ij = bo_ij->BOA;
 
-
-      if( BOA_ij/*bo_ij->BO*/ > 0.0 &&
-          ( j < system->n || pbond_ij->nbr < system->n ) ) {
+      if( BOA_ij/*bo_ij->BO*/ > 0.0 ) {
         i = pbond_ij->nbr;
         type_i = system->my_atoms[i].type;
 
@@ -216,6 +214,10 @@ void Valence_Angles( reax_system *system, control_params *control,
         for( pk = start_j; pk < pi; ++pk ) {
           start_pk = Start_Index( pk, thb_intrs );
           end_pk = End_Index( pk, thb_intrs );
+          pbond_jk = &(bonds->select.bond_list[pk]);
+          k        = pbond_jk->nbr;
+
+          if( i >= system->n && j >= system->n && k >= system->n ) continue;
 
           for( t = start_pk; t < end_pk; ++t )
             if( thb_intrs->select.three_body_list[t].thb == i ) {
@@ -245,8 +247,7 @@ void Valence_Angles( reax_system *system, control_params *control,
           p_ijk    = &( thb_intrs->select.three_body_list[num_thb_intrs] );
 
           if( (BOA_jk > 0.0) &&
-              (bo_ij->BO > control->thb_cut) &&
-              (bo_jk->BO > control->thb_cut) ) {
+              (j < system->n || i < system->n || k < system->n) ) {
             Calculate_Theta( pbond_ij->dvec, pbond_ij->d,
                             pbond_jk->dvec, pbond_jk->d,
                             &theta, &cos_theta );
