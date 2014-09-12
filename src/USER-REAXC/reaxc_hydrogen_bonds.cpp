@@ -141,9 +141,7 @@ void Hydrogen_Bonds( reax_system *system, control_params *control,
 
             if( control->virial == 0 ) {
               // dcos terms
-              Lock_Atom( workspace, i );
-              rvec_ScaledAdd( workspace->f[i], +CEhb2, dcos_theta_di );
-              Unlock_Atom( workspace, i );
+              rvec_ScaledAddAtomic( workspace->f[i], +CEhb2, dcos_theta_di );
               rvec_ScaledAdd( fj_sum, +CEhb2, dcos_theta_dj );
               rvec_ScaledAdd( fk_sum, +CEhb2, dcos_theta_dk );
               // dr terms
@@ -152,9 +150,7 @@ void Hydrogen_Bonds( reax_system *system, control_params *control,
             }
             else {
               rvec_Scale( force, +CEhb2, dcos_theta_di ); // dcos terms
-              Lock_Atom( workspace, i );
-              rvec_Add( workspace->f[i], force );
-              Unlock_Atom( workspace, i );
+              rvec_AddAtomic( workspace->f[i], force );
               rvec_iMultiply( ext_press, pbond_ij->rel_box, force );
               rvec_AddToComponents( ext_press_x, ext_press_y, ext_press_z, ext_press );
 
@@ -193,14 +189,10 @@ void Hydrogen_Bonds( reax_system *system, control_params *control,
           }
         }
 
-        Lock_Atom( workspace, k );
-        rvec_Add( workspace->f[k], fk_sum );
-        Unlock_Atom( workspace, k );
+        rvec_AddAtomic( workspace->f[k], fk_sum );
       }
 
-      Lock_Atom( workspace, j );
-      rvec_Add( workspace->f[j], fj_sum );
-      Unlock_Atom( workspace, j );
+      rvec_AddAtomic( workspace->f[j], fj_sum );
     }
   }
 

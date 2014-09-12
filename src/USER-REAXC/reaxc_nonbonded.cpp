@@ -306,17 +306,13 @@ void Tabulated_vdW_Coulomb_Energy( reax_system *system,control_params *control,
 
       if( control->virial == 0 ) {
         rvec_ScaledAdd( fi_sum, -(CEvd + CEclmb), nbr_pj->dvec );
-        Lock_Atom( workspace, j );
-        rvec_ScaledAdd( workspace->f[j], +(CEvd + CEclmb), nbr_pj->dvec );
-        Unlock_Atom( workspace, j );
+        rvec_ScaledAddAtomic( workspace->f[j], +(CEvd + CEclmb), nbr_pj->dvec );
       }
       else { // NPT, iNPT or sNPT
         rvec_Scale( temp, CEvd + CEclmb, nbr_pj->dvec );
 
         rvec_ScaledAdd( fi_sum, -1., temp );
-        Lock_Atom( workspace, j );
-        rvec_Add( workspace->f[j], temp );
-        Unlock_Atom( workspace, j );
+        rvec_AddAtomic( workspace->f[j], temp );
 
         rvec_iMultiply( ext_press, nbr_pj->rel_box, temp );
         rvec_AddToComponents( ext_press_x, ext_press_y, ext_press_z, ext_press );
@@ -324,9 +320,7 @@ void Tabulated_vdW_Coulomb_Energy( reax_system *system,control_params *control,
       }
     }
 
-    Lock_Atom( workspace, i );
-    rvec_Add( workspace->f[i], fi_sum );
-    Unlock_Atom( workspace, i );
+    rvec_AddAtomic( workspace->f[i], fi_sum );
   }
 
   data->my_en.e_vdW += e_vdW_sum;

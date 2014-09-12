@@ -348,14 +348,12 @@ int BOp( storage *workspace, reax_list *bonds, real bo_cut,
     bo_ij->Cdbo = bo_ij->Cdbopi = bo_ij->Cdbopi2 = 0.0;
     bo_ji->Cdbo = bo_ji->Cdbopi = bo_ji->Cdbopi2 = 0.0;
 
-    Lock_Atom( workspace, i );
-    rvec_Add( workspace->dDeltap_self[i], bo_ij->dBOp );
+    rvec_AddAtomic( workspace->dDeltap_self[i], bo_ij->dBOp );
+    #pragma omp atomic update
     workspace->total_bond_order[i] += bo_ij->BO; //currently total_BOp
-    Unlock_Atom( workspace, i );
-    Lock_Atom( workspace, j );
-    rvec_Add( workspace->dDeltap_self[j], bo_ji->dBOp );
+    rvec_AddAtomic( workspace->dDeltap_self[j], bo_ji->dBOp );
+    #pragma omp atomic update
     workspace->total_bond_order[j] += bo_ji->BO; //currently total_BOp
-    Unlock_Atom( workspace, j );
     return 1;
   }
 
