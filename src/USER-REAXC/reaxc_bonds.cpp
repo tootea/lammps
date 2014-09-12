@@ -35,16 +35,9 @@ void Bonds( reax_system *system, control_params *control,
             simulation_data *data, storage *workspace, reax_list **lists,
             output_controls *out_control )
 {
-  int i, j, pj, natoms;
-  int start_i, end_i;
-  int type_i, type_j;
-  real ebond, pow_BOs_be2, exp_be12, CEbo;
+  int i, natoms;
   real gp3, gp4, gp7, gp10, gp37;
-  real exphu, exphua1, exphub1, exphuov, hulpov, estriph;
-  real decobdbo, decobdboua, decobdboub;
-  single_body_parameters *sbp_i, *sbp_j;
-  two_body_parameters *twbp;
-  bond_order_data *bo_ij;
+  real e_bond_sum;
   reax_list *bonds;
 
   bonds = (*lists) + BONDS;
@@ -54,8 +47,20 @@ void Bonds( reax_system *system, control_params *control,
   gp10 = system->reax_param.gp.l[10];
   gp37 = (int) system->reax_param.gp.l[37];
   natoms = system->n;
+  e_bond_sum = 0.0;
 
+  #pragma omp parallel for reduction(+: e_bond_sum)
   for( i = 0; i < natoms; ++i ) {
+    int j, pj;
+    int start_i, end_i;
+    int type_i, type_j;
+    real ebond, pow_BOs_be2, exp_be12, CEbo;
+    real exphu, exphua1, exphub1, exphuov, hulpov, estriph;
+    real decobdbo, decobdboua, decobdboub;
+    single_body_parameters *sbp_i, *sbp_j;
+    two_body_parameters *twbp;
+    bond_order_data *bo_ij;
+
     start_i = Start_Index(i, bonds);
     end_i = End_Index(i, bonds);
 
@@ -88,14 +93,10 @@ void Bonds( reax_system *system, control_params *control,
 	( 1.0 - twbp->p_be1 * twbp->p_be2 * pow_BOs_be2 );
       
       /* calculate the Bond Energy */
-      data->my_en.e_bond += ebond =
+      ebond =
 	-twbp->De_s * bo_ij->BO_s * exp_be12
 	-twbp->De_p * bo_ij->BO_pi
 	-twbp->De_pp * bo_ij->BO_pi2;
-      
-      /* tally into per-atom energy */
-      if( system->pair_ptr->evflag)
-	system->pair_ptr->ev_tally(i,j,natoms,1,ebond,0.0,0.0,0.0,0.0,0.0);
       
       /* calculate derivatives of Bond Orders */
       bo_ij->Cdbo += CEbo;
@@ -114,7 +115,7 @@ void Bonds( reax_system *system, control_params *control,
 	  hulpov = 1.0 / (1.0 + 25.0 * exphuov);
 	  
 	  estriph = gp10 * exphu * hulpov * (exphua1 + exphub1);
-	  data->my_en.e_bond += estriph;
+	  ebond += estriph;
 	  
 	  decobdbo = gp10 * exphu * hulpov * (exphua1 + exphub1) *
 	    ( gp3 - 2.0 * gp7 * (bo_ij->BO-2.50) );
@@ -123,15 +124,25 @@ void Bonds( reax_system *system, control_params *control,
 	  decobdboub = -gp10 * exphu * hulpov *
 	    (gp3*exphub1 + 25.0*gp4*exphuov*hulpov*(exphua1+exphub1));
 	  
-	  /* tally into per-atom energy */
-	  if( system->pair_ptr->evflag)
-	    system->pair_ptr->ev_tally(i,j,natoms,1,estriph,0.0,0.0,0.0,0.0,0.0);
-	  
 	  bo_ij->Cdbo += decobdbo;
+          #pragma omp atomic update
 	  workspace->CdDelta[i] += decobdboua;
+          #pragma omp atomic update
 	  workspace->CdDelta[j] += decobdboub;
 	}
       }
+
+      e_bond_sum += ebond;
+
+      /* tally into per-atom energy */
+      if( system->pair_ptr->evflag) {
+        #pragma omp critical(tally_virial)
+        {
+          system->pair_ptr->ev_tally(i,j,natoms,1,ebond,0.0,0.0,0.0,0.0,0.0);
+        }
+      }
     }
   }
+
+  data->my_en.e_bond += e_bond_sum;
 }
