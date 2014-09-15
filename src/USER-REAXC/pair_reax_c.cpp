@@ -634,7 +634,7 @@ void PairReaxC::set_far_nbr( far_neighbor_data *fdest,
 int PairReaxC::estimate_reax_lists()
 {
   int itr_i, itr_j, i, j;
-  int num_nbrs, num_marked;
+  int num_nbrs;
   int *ilist, *jlist, *numneigh, **firstneigh, *marked;
   double d_sqr;
   rvec dvec;
@@ -649,28 +649,13 @@ int PairReaxC::estimate_reax_lists()
   firstneigh = list->firstneigh;
 
   num_nbrs = 0;
-  num_marked = 0;
-  marked = (int*) calloc( system->N, sizeof(int) );
 
   int numall = list->inum + list->gnum;
 
   for( itr_i = 0; itr_i < numall; ++itr_i ){
     i = ilist[itr_i];
-    marked[i] = 1;
-    ++num_marked;
-    jlist = firstneigh[i];
-
-    for( itr_j = 0; itr_j < numneigh[i]; ++itr_j ){
-      j = jlist[itr_j];
-      j &= NEIGHMASK;
-      get_distance( x[j], x[i], &d_sqr, &dvec );
-
-      if( d_sqr <= SQR(control->nonb_cut) )
-        ++num_nbrs;
-    }
+    num_nbrs += numneigh[i];
   }
-
-  free( marked );
 
   return static_cast<int> (MAX( num_nbrs*safezone, mincap*MIN_NBRS ));
 }
@@ -679,12 +664,10 @@ int PairReaxC::estimate_reax_lists()
 
 int PairReaxC::write_reax_lists()
 {
-  int itr_i, itr_j, i, j;
+  int itr_i, i;
   int num_nbrs;
-  int *ilist, *jlist, *numneigh, **firstneigh;
-  double d_sqr;
-  rvec dvec;
-  double dist, nbcutsq, **x;
+  int *ilist, *numneigh, **firstneigh;
+  double nbcutsq, **x;
   reax_list *far_nbrs;
   far_neighbor_data *far_list;
 
@@ -703,8 +686,20 @@ int PairReaxC::write_reax_lists()
 
   for( itr_i = 0; itr_i < numall; ++itr_i ){
     i = ilist[itr_i];
-    jlist = firstneigh[i];
     Set_Start_Index( i, num_nbrs, far_nbrs );
+    num_nbrs += numneigh[i];
+  }
+
+  #pragma omp parallel for private(i)
+  for( itr_i = 0; itr_i < numall; ++itr_i ){
+    int itr_j, j, pj;
+    int *jlist;
+    double dist, d_sqr;
+    rvec dvec;
+
+    i = ilist[itr_i];
+    jlist = firstneigh[i];
+    pj = Start_Index( i, far_nbrs );
 
     for( itr_j = 0; itr_j < numneigh[i]; ++itr_j ){
       j = jlist[itr_j];
@@ -713,11 +708,11 @@ int PairReaxC::write_reax_lists()
 
       if( d_sqr <= nbcutsq){
         dist = sqrt( d_sqr );
-        set_far_nbr( &far_list[num_nbrs], j, dist, dvec );
-        ++num_nbrs;
+        set_far_nbr( &far_list[pj], j, dist, dvec );
+        ++pj;
       }
     }
-    Set_End_Index( i, num_nbrs, far_nbrs );
+    Set_End_Index( i, pj, far_nbrs );
   }
 
   return num_nbrs;
