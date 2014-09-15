@@ -168,7 +168,7 @@ void Valence_Angles( reax_system *system, control_params *control,
     }
   }
 
-  #pragma omp parallel for reduction(+: ext_press_x, ext_press_y, ext_press_z, e_ang_sum, e_pen_sum, e_coa_sum) private(pi, type_j, start_j, end_j, BOA_ij, pbond_ij, bo_ij)
+  #pragma omp parallel for reduction(+: ext_press_x, ext_press_y, ext_press_z, e_ang_sum, e_pen_sum, e_coa_sum) private(pi, type_j, start_j, end_j, BOA_ij, pbond_ij, bo_ij) schedule(runtime)
   for( j = 0; j < system->N; ++j ) {         // Ray: the first one with system->N
     int i, k, pk, t;
     int type_i, type_k, start_pk, end_pk;

@@ -49,7 +49,7 @@ void Bonds( reax_system *system, control_params *control,
   natoms = system->n;
   e_bond_sum = 0.0;
 
-  #pragma omp parallel for reduction(+: e_bond_sum)
+  #pragma omp parallel for reduction(+: e_bond_sum) schedule(runtime)
   for( i = 0; i < natoms; ++i ) {
     int j, pj;
     int start_i, end_i;

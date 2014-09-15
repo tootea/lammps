@@ -690,7 +690,7 @@ int PairReaxC::write_reax_lists()
     num_nbrs += numneigh[i];
   }
 
-  #pragma omp parallel for private(i)
+  #pragma omp parallel for private(i) schedule(runtime)
   for( itr_i = 0; itr_i < numall; ++itr_i ){
     int itr_j, j, pj;
     int *jlist;

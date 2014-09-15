@@ -397,7 +397,7 @@ void Init_Forces_noQEq( reax_system *system, control_params *control,
   num_hbonds = 0;
   renbr = (data->step-data->prev_steps) % control->reneighbor == 0;
 
-  #pragma omp parallel for reduction(+: num_bonds, num_hbonds)
+  #pragma omp parallel for reduction(+: num_bonds, num_hbonds) schedule(runtime)
   for( i = 0; i < system->N; ++i ) {
     int j, pj;
     int start_i, end_i;

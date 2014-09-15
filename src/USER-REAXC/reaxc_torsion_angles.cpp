@@ -126,7 +126,7 @@ void Torsion_Angles( reax_system *system, control_params *control,
   ext_press_x = ext_press_y = ext_press_z = 0.0;
   e_tor_sum = e_con_sum = 0.0;
 
-  #pragma omp parallel for reduction(+: ext_press_x, ext_press_y, ext_press_z, e_tor_sum, e_con_sum)
+  #pragma omp parallel for reduction(+: ext_press_x, ext_press_y, ext_press_z, e_tor_sum, e_con_sum) schedule(runtime)
   for( j = 0; j < natoms; ++j ) {
     int i, k, l, pi, pj, pk, pl, pij, plk;
     int type_i, type_j, type_k, type_l;

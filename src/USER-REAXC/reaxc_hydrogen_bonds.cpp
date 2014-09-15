@@ -50,7 +50,7 @@ void Hydrogen_Bonds( reax_system *system, control_params *control,
   ext_press_x = ext_press_y = ext_press_z = 0.0;
   e_hb_sum = 0.0;
 
-  #pragma omp parallel for reduction(+: ext_press_x, ext_press_y, ext_press_z, e_hb_sum)
+  #pragma omp parallel for reduction(+: ext_press_x, ext_press_y, ext_press_z, e_hb_sum) schedule(runtime)
   for( j = 0; j < system->n; ++j ) {
     int  i, k, pi, pk;
     int  type_i, type_j, type_k;

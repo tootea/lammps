@@ -219,7 +219,7 @@ void Tabulated_vdW_Coulomb_Energy( reax_system *system,control_params *control,
   ext_press_x = ext_press_y = ext_press_z = 0.0;
   e_ele_sum = e_vdW_sum = 0.0;
 
-  #pragma omp parallel for reduction(+: ext_press_x, ext_press_y, ext_press_z, e_ele_sum, e_vdW_sum)
+  #pragma omp parallel for reduction(+: ext_press_x, ext_press_y, ext_press_z, e_ele_sum, e_vdW_sum) schedule(runtime)
   for( i = 0; i < natoms; ++i ) {
     int j, pj, r;
     int type_i, type_j, tmin, tmax;

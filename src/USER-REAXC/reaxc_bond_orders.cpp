@@ -394,7 +394,7 @@ void BO( reax_system *system, control_params *control, simulation_data *data,
   }
 
   /* Corrected Bond Order calculations */
-  #pragma omp parallel for private(j, pj, type_i, type_j, sbp_i, sbp_j)
+  #pragma omp parallel for private(j, pj, type_i, type_j, sbp_i, sbp_j) schedule(runtime)
   for( i = 0; i < system->N; ++i ) {
     int start_i, end_i, sym_index;
     real val_i, Deltap_i, Deltap_boc_i;
@@ -562,7 +562,7 @@ void BO( reax_system *system, control_params *control, simulation_data *data,
     }
   }
 
-  #pragma omp parallel for private(j, pj, type_i, type_j)
+  #pragma omp parallel for private(j, pj, type_i, type_j) schedule(runtime)
   for( i = 0; i < system->N; ++i ) {
     int start_i, end_i, sym_index;
     bond_order_data *bo_ij, *bo_ji;
@@ -600,7 +600,7 @@ void BO( reax_system *system, control_params *control, simulation_data *data,
   }
 
   p_lp1 = system->reax_param.gp.l[15];
-  #pragma omp parallel for private(type_j, sbp_j)
+  #pragma omp parallel for private(type_j, sbp_j) schedule(runtime)
   for( j = 0; j < system->N; ++j ){
     type_j = system->my_atoms[j].type;
     if (type_j < 0) continue;
