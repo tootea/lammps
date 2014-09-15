@@ -89,39 +89,18 @@ void Valence_Angles( reax_system *system, control_params *control,
                      simulation_data *data, storage *workspace,
                      reax_list **lists, output_controls *out_control )
 {
-  int i, j, pi, k, pk, t;
-  int type_i, type_j, type_k;
-  int start_j, end_j, start_pk, end_pk;
-  int cnt, num_thb_intrs;
+  int j, pi, type_j, start_j, end_j;
+  int num_thb_intrs, njnbr, njnbr_local;
 
-  real temp, temp_bo_jt, pBOjt7;
-  real p_val1, p_val2, p_val3, p_val4, p_val5;
-  real p_val6, p_val7, p_val8, p_val9, p_val10;
-  real p_pen1, p_pen2, p_pen3, p_pen4;
-  real p_coa1, p_coa2, p_coa3, p_coa4;
-  real trm8, expval6, expval7, expval2theta, expval12theta, exp3ij, exp3jk;
-  real exp_pen2ij, exp_pen2jk, exp_pen3, exp_pen4, trm_pen34, exp_coa2;
-  real expval10SBO2, trm_coa34_ij;
-  real dSBO1, dSBO2, SBO, SBO2, CSBO2, SBOp, prod_SBO, vlpadj;
-  real CEval1, CEval2, CEval3, CEval4, CEval5, CEval6, CEval7, CEval8;
-  real CEpen1, CEpen2, CEpen3;
-  real e_ang, e_coa, e_pen;
-  real CEcoa1, CEcoa2, CEcoa3, CEcoa4, CEcoa5;
-  real Cf7ij, Cf7jk, Cf8j, Cf9j;
-  real f7_ij, f7_jk, f8_Dj, f9_Dj;
-  real Ctheta_0, theta_0, theta_00, theta, cos_theta, sin_theta;
-  real BOA_ij, BOA_jk;
-  rvec force, ext_press;
+  real p_val6, p_val8, p_val9, p_val10;
+  real p_pen2, p_pen3, p_pen4;
+  real p_coa2, p_coa3, p_coa4;
+  real BOA_ij;
+  real ext_press_x, ext_press_y, ext_press_z;
+  real e_ang_sum, e_pen_sum, e_coa_sum;
 
-  // Tallying variables
-  real eng_tmp, fi_tmp[3], fj_tmp[3], fk_tmp[3];
-  real delij[3], delkj[3];
-
-  three_body_header *thbh;
-  three_body_parameters *thbp;
-  three_body_interaction_data *p_ijk, *p_kji;
-  bond_data *pbond_ij, *pbond_jk, *pbond_jt;
-  bond_order_data *bo_ij, *bo_jk, *bo_jt;
+  bond_data *pbond_ij;
+  bond_order_data *bo_ij;
   reax_list *bonds = (*lists) + BONDS;
   reax_list *thb_intrs =  (*lists) + THREE_BODIES;
 
@@ -137,9 +116,95 @@ void Valence_Angles( reax_system *system, control_params *control,
   p_coa3 = system->reax_param.gp.l[38];
   p_coa4 = system->reax_param.gp.l[30];
   num_thb_intrs = 0;
-
+  ext_press_x = ext_press_y = ext_press_z = 0.0;
+  e_ang_sum = e_pen_sum = e_coa_sum = 0.0;
 
   for( j = 0; j < system->N; ++j ) {         // Ray: the first one with system->N
+    type_j = system->my_atoms[j].type;
+    if (type_j < 0) continue;
+    start_j = Start_Index(j, bonds);
+    end_j = End_Index(j, bonds);
+    njnbr = 0;
+    njnbr_local = 0;
+
+    for( pi = start_j; pi < end_j; ++pi ) {
+      pbond_ij = &(bonds->select.bond_list[pi]);
+      bo_ij = &(pbond_ij->bo_data);
+      BOA_ij = bo_ij->BOA;
+      if (BOA_ij > 0.0) {
+        njnbr++;
+        if (pbond_ij->nbr < system->n) {
+          njnbr_local++;
+        }
+      }
+    }
+
+
+    for( pi = start_j; pi < end_j; ++pi ) {
+      Set_Start_Index( pi, num_thb_intrs, thb_intrs );
+      pbond_ij = &(bonds->select.bond_list[pi]);
+      bo_ij = &(pbond_ij->bo_data);
+      BOA_ij = bo_ij->BOA;
+
+      if( BOA_ij > 0.0 ) {
+        if( j < system->n || pbond_ij->nbr < system->n ) {
+          num_thb_intrs += njnbr - 1;
+        }
+        else {
+          num_thb_intrs += njnbr_local;
+        }
+      }
+
+      Set_End_Index(pi, num_thb_intrs, thb_intrs );
+    }
+  }
+
+  if( num_thb_intrs >= thb_intrs->num_intrs * DANGER_ZONE ) {
+    workspace->realloc.num_3body = num_thb_intrs;
+    if( num_thb_intrs > thb_intrs->num_intrs ) {
+      fprintf( stderr, "step%d-ran out of space on angle_list: top=%d, max=%d",
+               data->step, num_thb_intrs, thb_intrs->num_intrs );
+      MPI_Abort( MPI_COMM_WORLD, INSUFFICIENT_MEMORY );
+    }
+  }
+
+  #pragma omp parallel for reduction(+: ext_press_x, ext_press_y, ext_press_z, e_ang_sum, e_pen_sum, e_coa_sum) private(pi, type_j, start_j, end_j, BOA_ij, pbond_ij, bo_ij)
+  for( j = 0; j < system->N; ++j ) {         // Ray: the first one with system->N
+    int i, k, pk, t;
+    int type_i, type_k, start_pk, end_pk;
+    int cnt, ithb;
+    int updflag;
+
+    real temp, temp_bo_jt, pBOjt7;
+    real p_val1, p_val2, p_val3, p_val4, p_val5;
+    real p_val7, p_pen1, p_coa1;
+    real trm8, expval6, expval7, expval2theta, expval12theta, exp3ij, exp3jk;
+    real exp_pen2ij, exp_pen2jk, exp_pen3, exp_pen4, trm_pen34, exp_coa2;
+    real expval10SBO2, trm_coa34_ij;
+    real dSBO1, dSBO2, SBO, SBO2, CSBO2, SBOp, prod_SBO, vlpadj;
+    real CEval1, CEval2, CEval3, CEval4, CEval5, CEval6, CEval7, CEval8;
+    real CEpen1, CEpen2, CEpen3;
+    real e_ang, e_coa, e_pen;
+    real CEcoa1, CEcoa2, CEcoa3, CEcoa4, CEcoa5;
+    real Cf7ij, Cf7jk, Cf8j, Cf9j;
+    real f7_ij, f7_jk, f8_Dj, f9_Dj;
+    real Ctheta_0, theta_0, theta_00, theta, cos_theta, sin_theta;
+    real BOA_jk;
+    rvec force, ext_press, fi_sum, fj_sum, fk_sum;
+
+    // Tallying variables
+    real eng_tmp, fi_tmp[3], fj_tmp[3], fk_tmp[3];
+    real delij[3], delkj[3];
+
+    three_body_header *thbh;
+    three_body_parameters *thbp;
+    three_body_interaction_data *p_ijk, *p_kji;
+    bond_data *pbond_jk, *pbond_jt;
+    bond_order_data *bo_jk, *bo_jt;
+
+    updflag = 0;
+    rvec_MakeZero( fj_sum );
+
     type_j = system->my_atoms[j].type;
     if (type_j < 0) continue;
     start_j = Start_Index(j, bonds);
@@ -198,14 +263,15 @@ void Valence_Angles( reax_system *system, control_params *control,
     exp_coa2 = exp( p_coa2 * workspace->Delta_val[j] );
 
     for( pi = start_j; pi < end_j; ++pi ) {
-      Set_Start_Index( pi, num_thb_intrs, thb_intrs );
+      ithb = Start_Index( pi, thb_intrs );
       pbond_ij = &(bonds->select.bond_list[pi]);
       bo_ij = &(pbond_ij->bo_data);
       BOA_ij = bo_ij->BOA;
 
-      if( BOA_ij/*bo_ij->BO*/ > 0.0 ) {
+      if( BOA_ij > 0.0 ) {
         i = pbond_ij->nbr;
         type_i = system->my_atoms[i].type;
+        rvec_MakeZero( fi_sum );
 
         trm_coa34_ij =
           -p_coa3 * SQR(workspace->total_bond_order[i]-BOA_ij) +
@@ -221,7 +287,7 @@ void Valence_Angles( reax_system *system, control_params *control,
 
           for( t = start_pk; t < end_pk; ++t )
             if( thb_intrs->select.three_body_list[t].thb == i ) {
-              p_ijk = &(thb_intrs->select.three_body_list[num_thb_intrs] );
+              p_ijk = &(thb_intrs->select.three_body_list[ithb] );
               p_kji = &(thb_intrs->select.three_body_list[t]);
 
               p_ijk->thb = bonds->select.bond_list[pk].nbr;
@@ -233,7 +299,8 @@ void Valence_Angles( reax_system *system, control_params *control,
               rvec_Copy( p_ijk->dcos_dj, p_kji->dcos_dj );
               rvec_Copy( p_ijk->dcos_dk, p_kji->dcos_di );
 
-              ++num_thb_intrs;
+              ++ithb;
+
               break;
             }
         }
@@ -244,7 +311,7 @@ void Valence_Angles( reax_system *system, control_params *control,
           BOA_jk   = bo_jk->BOA;
           k        = pbond_jk->nbr;
           type_k   = system->my_atoms[k].type;
-          p_ijk    = &( thb_intrs->select.three_body_list[num_thb_intrs] );
+          p_ijk    = &( thb_intrs->select.three_body_list[ithb] );
 
           if( (BOA_jk > 0.0) &&
               (j < system->n || i < system->n || k < system->n) ) {
@@ -265,7 +332,7 @@ void Valence_Angles( reax_system *system, control_params *control,
                                             pbond_jk->dvec, pbond_jk->d );
             p_ijk->sin_theta = sin_theta;
 
-            ++num_thb_intrs;
+            ++ithb;
 
             if( (j < system->n) &&
                 (bo_ij->BO * bo_jk->BO > control->thb_cutsq) ) {
@@ -274,9 +341,12 @@ void Valence_Angles( reax_system *system, control_params *control,
               if( sin_theta < 1.0e-5 )
                 sin_theta = 1.0e-5;
 
+              rvec_MakeZero( fk_sum );
+
               for( cnt = 0; cnt < thbh->cnt; ++cnt ) {
                 if( fabs(thbh->prm[cnt].p_val1) > 0.001 ) {
                   thbp = &( thbh->prm[cnt] );
+                  updflag = 1;
 
                   /* ANGLE ENERGY */
                   p_val1 = thbp->p_val1;
@@ -324,7 +394,7 @@ void Valence_Angles( reax_system *system, control_params *control,
                   CEval7 = CEval5 * dSBO2;
                   CEval8 = -CEval4 / sin_theta;
 
-                  data->my_en.e_ang += e_ang =
+                  e_ang_sum += e_ang =
                     f7_ij * f7_jk * f8_Dj * expval12theta;
                   /* END ANGLE ENERGY*/
 
@@ -334,7 +404,7 @@ void Valence_Angles( reax_system *system, control_params *control,
                   exp_pen2ij = bo_ij->exp_pen2;
                   exp_pen2jk = bo_jk->exp_pen2;
 
-                  data->my_en.e_pen += e_pen =
+                  e_pen_sum += e_pen =
                     p_pen1 * f9_Dj * exp_pen2ij * exp_pen2jk;
 
                   CEpen1 = e_pen * Cf9j / f9_Dj;
@@ -346,7 +416,7 @@ void Valence_Angles( reax_system *system, control_params *control,
                   /* COALITION ENERGY */
                   p_coa1 = thbp->p_coa1;
 
-                  data->my_en.e_coa += e_coa =
+                  e_coa_sum += e_coa =
                     p_coa1 / (1. + exp_coa2) *
                     exp(
                       trm_coa34_ij +
@@ -366,8 +436,11 @@ void Valence_Angles( reax_system *system, control_params *control,
                   /* FORCES */
                   bo_ij->Cdbo += (CEval1 + CEpen2 + (CEcoa1 - CEcoa4));
                   bo_jk->Cdbo += (CEval2 + CEpen3 + (CEcoa2 - CEcoa5));
+                  #pragma omp atomic update
                   workspace->CdDelta[j] += ((CEval3 + CEval7) + CEpen1 + CEcoa3);
+                  #pragma omp atomic update
                   workspace->CdDelta[i] += CEcoa4;
+                  #pragma omp atomic update
                   workspace->CdDelta[k] += CEcoa5;
 
                   for( t = start_j; t < end_j; ++t ) {
@@ -383,22 +456,22 @@ void Valence_Angles( reax_system *system, control_params *control,
                   }
 
                   if( control->virial == 0 ) {
-                    rvec_ScaledAdd( workspace->f[i], CEval8, p_ijk->dcos_di );
-                    rvec_ScaledAdd( workspace->f[j], CEval8, p_ijk->dcos_dj );
-                    rvec_ScaledAdd( workspace->f[k], CEval8, p_ijk->dcos_dk );
+                    rvec_ScaledAdd( fi_sum, CEval8, p_ijk->dcos_di );
+                    rvec_ScaledAdd( fj_sum, CEval8, p_ijk->dcos_dj );
+                    rvec_ScaledAdd( fk_sum, CEval8, p_ijk->dcos_dk );
                   }
                   else {
                     rvec_Scale( force, CEval8, p_ijk->dcos_di );
-                    rvec_Add( workspace->f[i], force );
+                    rvec_Add( fi_sum, force );
                     rvec_iMultiply( ext_press, pbond_ij->rel_box, force );
-                    rvec_Add( data->my_ext_press, ext_press );
+                    rvec_AddToComponents( ext_press_x, ext_press_y, ext_press_z, ext_press );
 
-                    rvec_ScaledAdd( workspace->f[j], CEval8, p_ijk->dcos_dj );
+                    rvec_ScaledAdd( fj_sum, CEval8, p_ijk->dcos_dj );
 
                     rvec_Scale( force, CEval8, p_ijk->dcos_dk );
-                    rvec_Add( workspace->f[k], force );
+                    rvec_Add( fk_sum, force );
                     rvec_iMultiply( ext_press, pbond_jk->rel_box, force );
-                    rvec_Add( data->my_ext_press, ext_press );
+                    rvec_AddToComponents( ext_press_x, ext_press_y, ext_press_z, ext_press );
                   }
 
                   /* tally into per-atom virials */
@@ -416,29 +489,40 @@ void Valence_Angles( reax_system *system, control_params *control,
 
                     eng_tmp = e_ang + e_pen + e_coa;
 
-                    if( system->pair_ptr->evflag)
+                    #pragma omp critical(tally_virial)
+                    {
+                      if( system->pair_ptr->evflag)
                             system->pair_ptr->ev_tally(j,j,system->N,1,eng_tmp,0.0,0.0,0.0,0.0,0.0);
-                    if( system->pair_ptr->vflag_atom)
+                      if( system->pair_ptr->vflag_atom)
                             system->pair_ptr->v_tally3(i,j,k,fi_tmp,fk_tmp,delij,delkj);
+                    }
                   }
                 }
+              }
+
+              if( updflag ) {
+                rvec_AddAtomic( workspace->f[k], fk_sum );
               }
             }
           }
         }
+
+        if( updflag ) {
+          rvec_AddAtomic( workspace->f[i], fi_sum );
+        }
       }
+    }
 
-      Set_End_Index(pi, num_thb_intrs, thb_intrs );
+    if( updflag ) {
+      rvec_AddAtomic( workspace->f[j], fj_sum );
     }
   }
 
-  if( num_thb_intrs >= thb_intrs->num_intrs * DANGER_ZONE ) {
-    workspace->realloc.num_3body = num_thb_intrs;
-    if( num_thb_intrs > thb_intrs->num_intrs ) {
-      fprintf( stderr, "step%d-ran out of space on angle_list: top=%d, max=%d",
-               data->step, num_thb_intrs, thb_intrs->num_intrs );
-      MPI_Abort( MPI_COMM_WORLD, INSUFFICIENT_MEMORY );
-    }
-  }
+  data->my_en.e_ang += e_ang_sum;
+  data->my_en.e_pen += e_pen_sum;
+  data->my_en.e_coa += e_coa_sum;
 
+  if (control->virial != 0) {
+    rvec_AddFromComponents( data->my_ext_press, ext_press_x, ext_press_y, ext_press_z );
+  }
 }
