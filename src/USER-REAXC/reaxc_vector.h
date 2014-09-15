@@ -30,43 +30,43 @@
 #include "reaxc_types.h"
 #include "reaxc_defs.h"
 
-static void rvec_Copy( rvec dest, rvec src )
+inline void rvec_Copy( rvec dest, rvec src )
 {
   dest[0] = src[0], dest[1] = src[1], dest[2] = src[2];
 }
 
 
-static void rvec_Scale( rvec ret, real c, rvec v )
+inline void rvec_Scale( rvec ret, real c, rvec v )
 {
   ret[0] = c * v[0], ret[1] = c * v[1], ret[2] = c * v[2];
 }
 
 
-static void rvec_Add( rvec ret, rvec v )
+inline void rvec_Add( rvec ret, rvec v )
 {
   ret[0] += v[0], ret[1] += v[1], ret[2] += v[2];
 }
 
 
-static void rvec_AddToComponents( real x, real y, real z, rvec v )
+inline void rvec_AddToComponents( real x, real y, real z, rvec v )
 {
   x += v[0], y += v[1], z += v[2];
 }
 
 
-static void rvec_AddFromComponents( rvec ret, real x, real y, real z )
+inline void rvec_AddFromComponents( rvec ret, real x, real y, real z )
 {
   ret[0] += x, ret[1] += y, ret[2] += z;
 }
 
 
-static void rvec_ScaledAdd( rvec ret, real c, rvec v )
+inline void rvec_ScaledAdd( rvec ret, real c, rvec v )
 {
   ret[0] += c * v[0], ret[1] += c * v[1], ret[2] += c * v[2];
 }
 
 
-static void rvec_AddAtomic( rvec ret, rvec v )
+inline void rvec_AddAtomic( rvec ret, rvec v )
 {
   #pragma omp atomic update
   ret[0] += v[0];
@@ -77,7 +77,7 @@ static void rvec_AddAtomic( rvec ret, rvec v )
 }
 
 
-static void rvec_ScaledAddAtomic( rvec ret, real c, rvec v )
+inline void rvec_ScaledAddAtomic( rvec ret, real c, rvec v )
 {
   #pragma omp atomic update
   ret[0] += c * v[0];
@@ -88,7 +88,7 @@ static void rvec_ScaledAddAtomic( rvec ret, real c, rvec v )
 }
 
 
-static void rvec_Sum( rvec ret, rvec v1 ,rvec v2 )
+inline void rvec_Sum( rvec ret, rvec v1 ,rvec v2 )
 {
   ret[0] = v1[0] + v2[0];
   ret[1] = v1[1] + v2[1];
@@ -96,7 +96,7 @@ static void rvec_Sum( rvec ret, rvec v1 ,rvec v2 )
 }
 
 
-static void rvec_ScaledSum( rvec ret, real c1, rvec v1 ,real c2, rvec v2 )
+inline void rvec_ScaledSum( rvec ret, real c1, rvec v1 ,real c2, rvec v2 )
 {
   ret[0] = c1 * v1[0] + c2 * v2[0];
   ret[1] = c1 * v1[1] + c2 * v2[1];
@@ -104,19 +104,19 @@ static void rvec_ScaledSum( rvec ret, real c1, rvec v1 ,real c2, rvec v2 )
 }
 
 
-static real rvec_Dot( rvec v1, rvec v2 )
+inline real rvec_Dot( rvec v1, rvec v2 )
 {
   return v1[0]*v2[0] + v1[1]*v2[1] + v1[2]*v2[2];
 }
 
 
-static real rvec_ScaledDot( real c1, rvec v1, real c2, rvec v2 )
+inline real rvec_ScaledDot( real c1, rvec v1, real c2, rvec v2 )
 {
   return (c1*c2) * (v1[0]*v2[0] + v1[1]*v2[1] + v1[2]*v2[2]);
 }
 
 
-static void rvec_Multiply( rvec r, rvec v1, rvec v2 )
+inline void rvec_Multiply( rvec r, rvec v1, rvec v2 )
 {
   r[0] = v1[0] * v2[0];
   r[1] = v1[1] * v2[1];
@@ -124,7 +124,7 @@ static void rvec_Multiply( rvec r, rvec v1, rvec v2 )
 }
 
 
-static void rvec_iMultiply( rvec r, ivec v1, rvec v2 )
+inline void rvec_iMultiply( rvec r, ivec v1, rvec v2 )
 {
   r[0] = v1[0] * v2[0];
   r[1] = v1[1] * v2[1];
@@ -132,7 +132,7 @@ static void rvec_iMultiply( rvec r, ivec v1, rvec v2 )
 }
 
 
-static void rvec_Divide( rvec r, rvec v1, rvec v2 )
+inline void rvec_Divide( rvec r, rvec v1, rvec v2 )
 {
   r[0] = v1[0] / v2[0];
   r[1] = v1[1] / v2[1];
@@ -140,7 +140,7 @@ static void rvec_Divide( rvec r, rvec v1, rvec v2 )
 }
 
 
-static void rvec_iDivide( rvec r, rvec v1, ivec v2 )
+inline void rvec_iDivide( rvec r, rvec v1, ivec v2 )
 {
   r[0] = v1[0] / v2[0];
   r[1] = v1[1] / v2[1];
@@ -148,7 +148,7 @@ static void rvec_iDivide( rvec r, rvec v1, ivec v2 )
 }
 
 
-static void rvec_Invert( rvec r, rvec v )
+inline void rvec_Invert( rvec r, rvec v )
 {
   r[0] = 1. / v[0];
   r[1] = 1. / v[1];
@@ -156,7 +156,7 @@ static void rvec_Invert( rvec r, rvec v )
 }
 
 
-static void rvec_Cross( rvec ret, rvec v1, rvec v2 )
+inline void rvec_Cross( rvec ret, rvec v1, rvec v2 )
 {
   ret[0] = v1[1] * v2[2] - v1[2] * v2[1];
   ret[1] = v1[2] * v2[0] - v1[0] * v2[2];
@@ -164,7 +164,7 @@ static void rvec_Cross( rvec ret, rvec v1, rvec v2 )
 }
 
 
-static void rvec_OuterProduct( rtensor r, rvec v1, rvec v2 )
+inline void rvec_OuterProduct( rtensor r, rvec v1, rvec v2 )
 {
   int i, j;
 
@@ -174,19 +174,19 @@ static void rvec_OuterProduct( rtensor r, rvec v1, rvec v2 )
 }
 
 
-static real rvec_Norm_Sqr( rvec v )
+inline real rvec_Norm_Sqr( rvec v )
 {
   return SQR(v[0]) + SQR(v[1]) + SQR(v[2]);
 }
 
 
-static real rvec_Norm( rvec v )
+inline real rvec_Norm( rvec v )
 {
   return sqrt( SQR(v[0]) + SQR(v[1]) + SQR(v[2]) );
 }
 
 
-static int rvec_isZero( rvec v )
+inline int rvec_isZero( rvec v )
 {
   if( fabs(v[0]) > ALMOST_ZERO ||
       fabs(v[1]) > ALMOST_ZERO ||
@@ -196,13 +196,13 @@ static int rvec_isZero( rvec v )
 }
 
 
-static void rvec_MakeZero( rvec v )
+inline void rvec_MakeZero( rvec v )
 {
   v[0] = v[1] = v[2] = 0.000000000000000e+00;
 }
 
 
-static void rtensor_MatVec( rvec ret, rtensor m, rvec v )
+inline void rtensor_MatVec( rvec ret, rtensor m, rvec v )
 {
   int i;
   rvec temp;
@@ -223,7 +223,7 @@ static void rtensor_MatVec( rvec ret, rtensor m, rvec v )
 }
 
 
-static void rtensor_Scale( rtensor ret, real c, rtensor m )
+inline void rtensor_Scale( rtensor ret, real c, rtensor m )
 {
   int i, j;
 
@@ -233,7 +233,7 @@ static void rtensor_Scale( rtensor ret, real c, rtensor m )
 }
 
 
-static void rtensor_MakeZero( rtensor t )
+inline void rtensor_MakeZero( rtensor t )
 {
   t[0][0] = t[0][1] = t[0][2] = 0;
   t[1][0] = t[1][1] = t[1][2] = 0;
@@ -241,19 +241,19 @@ static void rtensor_MakeZero( rtensor t )
 }
 
 
-static void ivec_MakeZero( ivec v )
+inline void ivec_MakeZero( ivec v )
 {
   v[0] = v[1] = v[2] = 0;
 }
 
 
-static void ivec_Copy( ivec dest, ivec src )
+inline void ivec_Copy( ivec dest, ivec src )
 {
   dest[0] = src[0], dest[1] = src[1], dest[2] = src[2];
 }
 
 
-static void ivec_Scale( ivec dest, real C, ivec src )
+inline void ivec_Scale( ivec dest, real C, ivec src )
 {
   dest[0] = (int)(C * src[0]);
   dest[1] = (int)(C * src[1]);
@@ -261,7 +261,7 @@ static void ivec_Scale( ivec dest, real C, ivec src )
 }
 
 
-static void ivec_Sum( ivec dest, ivec v1, ivec v2 )
+inline void ivec_Sum( ivec dest, ivec v1, ivec v2 )
 {
   dest[0] = v1[0] + v2[0];
   dest[1] = v1[1] + v2[1];
