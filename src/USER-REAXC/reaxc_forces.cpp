@@ -102,22 +102,12 @@ void Compute_Total_Force( reax_system *system, control_params *control,
   reax_list *bonds = (*lists) + BONDS;
 
   #pragma omp barrier
-  if( control->virial == 0 ) {
-    #pragma omp for schedule(runtime) nowait
-    for( i = 0; i < system->N; ++i )
-      for( pj = Start_Index(i, bonds); pj < End_Index(i, bonds); ++pj )
-        if( i < bonds->select.bond_list[pj].nbr ) {
-            Add_dBond_to_Forces( system, i, pj, workspace, lists );
-        }
-  }
-  else {
-    #pragma omp single
-    for( i = 0; i < system->N; ++i )
-      for( pj = Start_Index(i, bonds); pj < End_Index(i, bonds); ++pj )
-        if( i < bonds->select.bond_list[pj].nbr ) {
-            Add_dBond_to_Forces_NPT( i, pj, data, workspace, lists );
-        }
-  }
+  #pragma omp for schedule(runtime) nowait
+  for( i = 0; i < system->N; ++i )
+    for( pj = Start_Index(i, bonds); pj < End_Index(i, bonds); ++pj )
+      if( i < bonds->select.bond_list[pj].nbr ) {
+          Add_dBond_to_Forces( system, i, pj, workspace, lists );
+      }
 }
 
 void Validate_Lists( reax_system *system, storage *workspace, reax_list **lists,

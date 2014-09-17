@@ -54,7 +54,6 @@ void vdW_Coulomb_Energy( reax_system *system, control_params *control,
   // Tallying variables:
   real pe_vdw, f_tmp, delij[3];
   real e_ele_sum, e_vdW_sum;
-  rvec ext_press_sum;
 
   natoms = system->n;
   far_nbrs = (*lists) + FAR_NBRS;
@@ -64,7 +63,6 @@ void vdW_Coulomb_Energy( reax_system *system, control_params *control,
   e_vdW = 0;
   e_lg = de_lg = 0.0;
   e_ele_sum = e_vdW_sum = 0.0;
-  rvec_MakeZero( ext_press_sum );
 
   #pragma omp for schedule(runtime) nowait
   for( i = 0; i < natoms; ++i ) {
@@ -191,19 +189,8 @@ void vdW_Coulomb_Energy( reax_system *system, control_params *control,
         }
       }
 
-      if( control->virial == 0 ) {
-        rvec_ScaledAdd( fi_sum, -(CEvd + CEclmb), nbr_pj->dvec );
-        rvec_ScaledAddAtomic( workspace->f[j], +(CEvd + CEclmb), nbr_pj->dvec );
-      }
-      else { /* NPT, iNPT or sNPT */
-        rvec_Scale( temp, CEvd + CEclmb, nbr_pj->dvec );
-
-        rvec_ScaledAdd( fi_sum, -1., temp );
-        rvec_AddAtomic( workspace->f[j], temp );
-
-        rvec_iMultiply( ext_press, nbr_pj->rel_box, temp );
-        rvec_Add( ext_press_sum, ext_press );
-      }
+      rvec_ScaledAdd( fi_sum, -(CEvd + CEclmb), nbr_pj->dvec );
+      rvec_ScaledAddAtomic( workspace->f[j], +(CEvd + CEclmb), nbr_pj->dvec );
       }
     }
 
@@ -214,10 +201,6 @@ void vdW_Coulomb_Energy( reax_system *system, control_params *control,
   data->my_en.e_vdW += e_vdW_sum;
   #pragma omp atomic update
   data->my_en.e_ele += e_ele_sum;
-
-  if (control->virial != 0) {
-    rvec_AddAtomic( data->my_ext_press, ext_press_sum );
-  }
 
   Compute_Polarization_Energy( system, data );
 }
@@ -243,12 +226,10 @@ void Tabulated_vdW_Coulomb_Energy( reax_system *system,control_params *control,
   reax_list *far_nbrs;
   LR_lookup_table *t;
   real e_ele_sum, e_vdW_sum;
-  rvec ext_press_sum;
 
   natoms = system->n;
   far_nbrs = (*lists) + FAR_NBRS;
 
-  rvec_MakeZero( ext_press_sum );
   e_ele_sum = e_vdW_sum = 0.0;
 
   #pragma omp for schedule(runtime) nowait
@@ -324,19 +305,8 @@ void Tabulated_vdW_Coulomb_Energy( reax_system *system,control_params *control,
         }
       }
 
-      if( control->virial == 0 ) {
-        rvec_ScaledAdd( fi_sum, -(CEvd + CEclmb), nbr_pj->dvec );
-        rvec_ScaledAddAtomic( workspace->f[j], +(CEvd + CEclmb), nbr_pj->dvec );
-      }
-      else { // NPT, iNPT or sNPT
-        rvec_Scale( temp, CEvd + CEclmb, nbr_pj->dvec );
-
-        rvec_ScaledAdd( fi_sum, -1., temp );
-        rvec_AddAtomic( workspace->f[j], temp );
-
-        rvec_iMultiply( ext_press, nbr_pj->rel_box, temp );
-        rvec_Add( ext_press_sum, ext_press );
-      }
+      rvec_ScaledAdd( fi_sum, -(CEvd + CEclmb), nbr_pj->dvec );
+      rvec_ScaledAddAtomic( workspace->f[j], +(CEvd + CEclmb), nbr_pj->dvec );
       }
     }
 
@@ -347,10 +317,6 @@ void Tabulated_vdW_Coulomb_Energy( reax_system *system,control_params *control,
   data->my_en.e_vdW += e_vdW_sum;
   #pragma omp atomic update
   data->my_en.e_ele += e_ele_sum;
-
-  if (control->virial != 0) {
-    rvec_AddAtomic( data->my_ext_press, ext_press_sum );
-  }
 
   Compute_Polarization_Energy( system, data );
 }

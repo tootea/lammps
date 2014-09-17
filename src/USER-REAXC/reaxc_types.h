@@ -539,7 +539,6 @@ typedef struct{
 
 typedef struct {
   int nbr;
-  ivec rel_box;
   real d;
   rvec dvec;
 } far_neighbor_data;
@@ -577,7 +576,6 @@ typedef struct {
   int nbr;
   int sym_index;
   int dbond_index;
-  ivec rel_box;
   //  rvec ext_factor;
   real d;
   rvec dvec;

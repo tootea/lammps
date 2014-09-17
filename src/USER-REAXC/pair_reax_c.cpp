@@ -481,8 +481,7 @@ void PairReaxC::compute(int eflag, int vflag)
   if (eflag || vflag) ev_setup(eflag,vflag);
   else ev_unset();
 
-  if (vflag_global) control->virial = 1;
-  else control->virial = 0;
+  control->virial = 0;
 
   system->n = atom->nlocal; // my atoms
   system->N = atom->nlocal + atom->nghost; // mine + ghosts
@@ -626,7 +625,6 @@ void PairReaxC::set_far_nbr( far_neighbor_data *fdest,
   fdest->nbr = j;
   fdest->d = d;
   rvec_Copy( fdest->dvec, dvec );
-  ivec_MakeZero( fdest->rel_box );
 }
 
 /* ---------------------------------------------------------------------- */

@@ -112,7 +112,7 @@ void Valence_Angles( reax_system *system, control_params *control,
   real f7_ij, f7_jk, f8_Dj, f9_Dj;
   real Ctheta_0, theta_0, theta_00, theta, cos_theta, sin_theta;
   real BOA_ij, BOA_jk;
-  rvec force, ext_press, ext_press_sum, fi_sum, fj_sum, fk_sum;
+  rvec force, ext_press, fi_sum, fj_sum, fk_sum;
   real CdDelta_i, CdDelta_j, CdDelta_k;
 
   // Tallying variables
@@ -142,7 +142,6 @@ void Valence_Angles( reax_system *system, control_params *control,
   num_thb_intrs = 0;
 
   e_ang_sum = e_pen_sum = e_coa_sum = 0.0;
-  rvec_MakeZero(ext_press_sum);
 
   #pragma omp single
   {
@@ -451,24 +450,9 @@ void Valence_Angles( reax_system *system, control_params *control,
                       bo_jt->Cdbopi2 += CEval5;
                   }
 
-                  if( control->virial == 0 ) {
-                    rvec_ScaledAdd( fi_sum, CEval8, p_ijk->dcos_di );
-                    rvec_ScaledAdd( fj_sum, CEval8, p_ijk->dcos_dj );
-                    rvec_ScaledAdd( fk_sum, CEval8, p_ijk->dcos_dk );
-                  }
-                  else {
-                    rvec_Scale( force, CEval8, p_ijk->dcos_di );
-                    rvec_Add( fi_sum, force );
-                    rvec_iMultiply( ext_press, pbond_ij->rel_box, force );
-                    rvec_Add( ext_press_sum, ext_press );
-
-                    rvec_ScaledAdd( fj_sum, CEval8, p_ijk->dcos_dj );
-
-                    rvec_Scale( force, CEval8, p_ijk->dcos_dk );
-                    rvec_Add( fk_sum, force );
-                    rvec_iMultiply( ext_press, pbond_jk->rel_box, force );
-                    rvec_Add( ext_press_sum, ext_press );
-                  }
+                  rvec_ScaledAdd( fi_sum, CEval8, p_ijk->dcos_di );
+                  rvec_ScaledAdd( fj_sum, CEval8, p_ijk->dcos_dj );
+                  rvec_ScaledAdd( fk_sum, CEval8, p_ijk->dcos_dk );
 
                   /* tally into per-atom virials */
                   if( system->pair_ptr->vflag_atom || system->pair_ptr->evflag) {
@@ -526,8 +510,4 @@ void Valence_Angles( reax_system *system, control_params *control,
   data->my_en.e_pen += e_pen_sum;
   #pragma omp atomic update
   data->my_en.e_coa += e_coa_sum;
-
-  if (control->virial != 0) {
-    rvec_AddAtomic( data->my_ext_press, ext_press_sum );
-  }
 }

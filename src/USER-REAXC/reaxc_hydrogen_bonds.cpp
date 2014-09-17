@@ -57,14 +57,12 @@ void Hydrogen_Bonds( reax_system *system, control_params *control,
   // tally variables
   real fi_tmp[3], fk_tmp[3], delij[3], delkj[3];
   real e_hb_sum;
-  rvec ext_press_sum;
 
   bonds = (*lists) + BONDS;
   bond_list = bonds->select.bond_list;
   hbonds = (*lists) + HBONDS;
   hbond_list = hbonds->select.hbond_list;
 
-  rvec_MakeZero( ext_press_sum );
   e_hb_sum = 0.0;
 
   #pragma omp for schedule(runtime) nowait
@@ -139,36 +137,13 @@ void Hydrogen_Bonds( reax_system *system, control_params *control,
             #pragma omp atomic update
             bo_ij->Cdbo += CEhb1; // dbo term
 
-            if( control->virial == 0 ) {
-              // dcos terms
-              rvec_ScaledAddAtomic( workspace->f[i], +CEhb2, dcos_theta_di );
-              rvec_ScaledAdd( fj_sum, +CEhb2, dcos_theta_dj );
-              rvec_ScaledAdd( fk_sum, +CEhb2, dcos_theta_dk );
-              // dr terms
-              rvec_ScaledAdd( fj_sum, -CEhb3/r_jk, dvec_jk );
-              rvec_ScaledAdd( fk_sum, +CEhb3/r_jk, dvec_jk );
-            }
-            else {
-              rvec_Scale( force, +CEhb2, dcos_theta_di ); // dcos terms
-              rvec_AddAtomic( workspace->f[i], force );
-              rvec_iMultiply( ext_press, pbond_ij->rel_box, force );
-              rvec_Add( ext_press_sum, ext_press );
-
-              rvec_ScaledAdd( fj_sum, +CEhb2, dcos_theta_dj );
-
-              ivec_Scale( rel_jk, hbond_list[pk].scl, nbr_jk->rel_box );
-              rvec_Scale( force, +CEhb2, dcos_theta_dk );
-              rvec_Add( fk_sum, force );
-              rvec_iMultiply( ext_press, rel_jk, force );
-              rvec_Add( ext_press_sum, ext_press );
-              // dr terms
-              rvec_ScaledAdd( fj_sum, -CEhb3/r_jk, dvec_jk );
-
-              rvec_Scale( force, CEhb3/r_jk, dvec_jk );
-              rvec_Add( fk_sum, force );
-              rvec_iMultiply( ext_press, rel_jk, force );
-              rvec_Add( ext_press_sum, ext_press );
-            }
+            // dcos terms
+            rvec_ScaledAddAtomic( workspace->f[i], +CEhb2, dcos_theta_di );
+            rvec_ScaledAdd( fj_sum, +CEhb2, dcos_theta_dj );
+            rvec_ScaledAdd( fk_sum, +CEhb2, dcos_theta_dk );
+            // dr terms
+            rvec_ScaledAdd( fj_sum, -CEhb3/r_jk, dvec_jk );
+            rvec_ScaledAdd( fk_sum, +CEhb3/r_jk, dvec_jk );
 
             /* tally into per-atom virials */
             if (system->pair_ptr->vflag_atom || system->pair_ptr->evflag) {
@@ -198,8 +173,4 @@ void Hydrogen_Bonds( reax_system *system, control_params *control,
 
   #pragma omp atomic update
   data->my_en.e_hb += e_hb_sum;
-
-  if (control->virial != 0) {
-    rvec_AddAtomic( data->my_ext_press, ext_press_sum );
-  }
 }
