@@ -545,8 +545,6 @@ typedef struct {
 
 typedef struct {
   int nbr;
-  int scl;
-  far_neighbor_data *ptr;
 } hbond_data;
 
 

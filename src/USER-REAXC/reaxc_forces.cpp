@@ -453,15 +453,11 @@ void Init_Forces_noQEq( reax_system *system, control_params *control,
             if( ihb == 1 && jhb == 2 ) {
               ihb_top = Next_End_Index( atom_i->Hindex, hbonds );
               hbonds->select.hbond_list[ihb_top].nbr = j;
-              hbonds->select.hbond_list[ihb_top].scl = 1;
-              hbonds->select.hbond_list[ihb_top].ptr = nbr_pj;
               ++num_hbonds;
             }
             else if( j < system->n && ihb == 2 && jhb == 1 ) {
               jhb_top = Next_End_Index( atom_j->Hindex, hbonds );
               hbonds->select.hbond_list[jhb_top].nbr = i;
-              hbonds->select.hbond_list[jhb_top].scl = -1;
-              hbonds->select.hbond_list[jhb_top].ptr = nbr_pj;
               ++num_hbonds;
             }
           }
