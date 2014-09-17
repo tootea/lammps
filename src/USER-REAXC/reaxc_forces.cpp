@@ -383,7 +383,7 @@ void Init_Forces_noQEq( reax_system *system, control_params *control,
   int type_i, type_j;
   int num_bonds, num_hbonds;
   int ihb, jhb, ihb_top, jhb_top;
-  int local, flag, renbr;
+  int local;
   real cutoff;
   reax_list *far_nbrs, *bonds, *hbonds;
   single_body_parameters *sbp_i, *sbp_j;
@@ -408,7 +408,6 @@ void Init_Forces_noQEq( reax_system *system, control_params *control,
     workspace->realloc.num_bonds = 0;
     workspace->realloc.num_hbonds = 0;
   }
-  renbr = (data->step-data->prev_steps) % control->reneighbor == 0;
 
   #pragma omp for schedule(runtime) nowait
   for( i = 0; i < system->N; ++i ) {
@@ -433,32 +432,13 @@ void Init_Forces_noQEq( reax_system *system, control_params *control,
       ihb = sbp_i->p_hbond;
     }
 
-    /* update i-j distance - check if j is within cutoff */
+    /* check if j is within cutoff */
     for( pj = start_i; pj < end_i; ++pj ) {
       nbr_pj = &( far_nbrs->select.far_nbr_list[pj] );
       j = nbr_pj->nbr;
       atom_j = &(system->my_atoms[j]);
 
-      if( renbr ) {
-        if( nbr_pj->d <= cutoff )
-          flag = 1;
-        else flag = 0;
-      }
-      else{
-        nbr_pj->dvec[0] = atom_j->x[0] - atom_i->x[0];
-        nbr_pj->dvec[1] = atom_j->x[1] - atom_i->x[1];
-        nbr_pj->dvec[2] = atom_j->x[2] - atom_i->x[2];
-        nbr_pj->d = rvec_Norm_Sqr( nbr_pj->dvec );
-        if( nbr_pj->d <= SQR(cutoff) ) {
-          nbr_pj->d = sqrt(nbr_pj->d);
-          flag = 1;
-        }
-        else {
-          flag = 0;
-        }
-      }
-
-      if( flag ) {
+      if( nbr_pj->d <= cutoff ) {
         type_j = atom_j->type;
 	if (type_j < 0) continue;
         sbp_j = &(system->reax_param.sbp[type_j]);
@@ -489,8 +469,8 @@ void Init_Forces_noQEq( reax_system *system, control_params *control,
 
         if( //(workspace->bond_mark[i] < 3 || workspace->bond_mark[j] < 3) &&
             nbr_pj->d <= control->bond_cut) {
-          if( BOp( workspace, bonds, control->bo_cut,
-                   i, nbr_pj, sbp_i, sbp_j, twbp ) ) {
+          if( BOp( system, workspace, bonds, control->bo_cut,
+                   i, nbr_pj->nbr, sbp_i, sbp_j, twbp ) ) {
             num_bonds += 2;
 
             if (!local || j >= system->n) {

@@ -321,6 +321,7 @@ void Print_Far_Neighbors( reax_system *system, reax_list **lists,
   rc_tagint id_i, id_j;
   FILE *fout;
   reax_list *far_nbrs;
+  rvec dvec;
 
   sprintf( fname, "%s.far_nbrs.%d", control->sim_name, system->my_rank );
   fout      = fopen( fname, "w" );
@@ -334,17 +335,19 @@ void Print_Far_Neighbors( reax_system *system, reax_list **lists,
       nbr = far_nbrs->select.far_nbr_list[j].nbr;
       id_j = system->my_atoms[nbr].orig_id;
 
+      rvec_ScaledSum( dvec, 1.0, system->my_atoms[nbr].x, -1.0, system->my_atoms[i].x );
+
       fprintf( fout, "%6d%6d%24.15e%24.15e%24.15e%24.15e\n",
                id_i, id_j, far_nbrs->select.far_nbr_list[j].d,
-               far_nbrs->select.far_nbr_list[j].dvec[0],
-               far_nbrs->select.far_nbr_list[j].dvec[1],
-               far_nbrs->select.far_nbr_list[j].dvec[2] );
+               dvec[0],
+               dvec[1],
+               dvec[2] );
 
       fprintf( fout, "%6d%6d%24.15e%24.15e%24.15e%24.15e\n",
                id_j, id_i, far_nbrs->select.far_nbr_list[j].d,
-               -far_nbrs->select.far_nbr_list[j].dvec[0],
-               -far_nbrs->select.far_nbr_list[j].dvec[1],
-               -far_nbrs->select.far_nbr_list[j].dvec[2] );
+               -dvec[0],
+               -dvec[1],
+               -dvec[2] );
     }
   }
 

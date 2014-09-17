@@ -77,7 +77,7 @@ class PairReaxC : public Pair {
   void create_fix();
   void write_reax_atoms();
   void get_distance(rvec, rvec, double *, rvec *);
-  void set_far_nbr(far_neighbor_data *, int, double, rvec);
+  void set_far_nbr(far_neighbor_data *, int, double);
   int estimate_reax_lists();
   int write_reax_lists();
   void read_reax_forces(int);

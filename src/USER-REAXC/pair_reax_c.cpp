@@ -620,11 +620,10 @@ void PairReaxC::get_distance( rvec xj, rvec xi, double *d_sqr, rvec *dvec )
 /* ---------------------------------------------------------------------- */
 
 void PairReaxC::set_far_nbr( far_neighbor_data *fdest,
-                              int j, double d, rvec dvec )
+                              int j, double d )
 {
   fdest->nbr = j;
   fdest->d = d;
-  rvec_Copy( fdest->dvec, dvec );
 }
 
 /* ---------------------------------------------------------------------- */
@@ -706,7 +705,7 @@ int PairReaxC::write_reax_lists()
 
       if( d_sqr <= nbcutsq){
         dist = sqrt( d_sqr );
-        set_far_nbr( &far_list[pj], j, dist, dvec );
+        set_far_nbr( &far_list[pj], j, dist );
         ++pj;
       }
     }

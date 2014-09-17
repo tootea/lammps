@@ -46,7 +46,7 @@ void vdW_Coulomb_Energy( reax_system *system, control_params *control,
   real dr3gamij_1, dr3gamij_3;
   real e_ele, e_vdW, e_core, SMALL = 0.0001;
   real e_lg, de_lg, r_ij5, r_ij6, re6;
-  rvec temp, ext_press, fi_sum;
+  rvec temp, ext_press, fi_sum, dvec_ij;
   two_body_parameters *twbp;
   far_neighbor_data *nbr_pj;
   reax_list *far_nbrs;
@@ -84,10 +84,11 @@ void vdW_Coulomb_Energy( reax_system *system, control_params *control,
         if (j < natoms) flag = 1;
         else if (orig_i < orig_j) flag = 1;
         else if (orig_i == orig_j) {
-          if (nbr_pj->dvec[2] > SMALL) flag = 1;
-          else if (fabs(nbr_pj->dvec[2]) < SMALL) {
-            if (nbr_pj->dvec[1] > SMALL) flag = 1;
-            else if (fabs(nbr_pj->dvec[1]) < SMALL && nbr_pj->dvec[0] > SMALL)
+          rvec_ScaledSum( dvec_ij, 1.0, system->my_atoms[j].x, -1.0, system->my_atoms[i].x );
+          if (dvec_ij[2] > SMALL) flag = 1;
+          else if (fabs(dvec_ij[2]) < SMALL) {
+            if (dvec_ij[1] > SMALL) flag = 1;
+            else if (fabs(dvec_ij[1]) < SMALL && dvec_ij[0] > SMALL)
               flag = 1;
           }
         }
@@ -95,7 +96,8 @@ void vdW_Coulomb_Energy( reax_system *system, control_params *control,
 
       if (flag) {
 
-      r_ij = nbr_pj->d;
+      rvec_ScaledSum( dvec_ij, 1.0, system->my_atoms[j].x, -1.0, system->my_atoms[i].x );
+      r_ij = rvec_Norm( dvec_ij );
       twbp = &(system->reax_param.tbp[ system->my_atoms[i].type ]
                                        [ system->my_atoms[j].type ]);
 
@@ -189,8 +191,8 @@ void vdW_Coulomb_Energy( reax_system *system, control_params *control,
         }
       }
 
-      rvec_ScaledAdd( fi_sum, -(CEvd + CEclmb), nbr_pj->dvec );
-      rvec_ScaledAddAtomic( workspace->f[j], +(CEvd + CEclmb), nbr_pj->dvec );
+      rvec_ScaledAdd( fi_sum, -(CEvd + CEclmb), dvec_ij );
+      rvec_ScaledAddAtomic( workspace->f[j], +(CEvd + CEclmb), dvec_ij );
       }
     }
 
@@ -221,7 +223,7 @@ void Tabulated_vdW_Coulomb_Energy( reax_system *system,control_params *control,
   real CEvd, CEclmb, SMALL = 0.0001;
   real f_tmp, delij[3];
 
-  rvec temp, ext_press, fi_sum;
+  rvec temp, ext_press, fi_sum, dvec_ij;
   far_neighbor_data *nbr_pj;
   reax_list *far_nbrs;
   LR_lookup_table *t;
@@ -234,7 +236,6 @@ void Tabulated_vdW_Coulomb_Energy( reax_system *system,control_params *control,
 
   #pragma omp for schedule(runtime) nowait
   for( i = 0; i < natoms; ++i ) {
-
     type_i  = system->my_atoms[i].type;
     if (type_i < 0) continue;
     start_i = Start_Index(i,far_nbrs);
@@ -254,10 +255,11 @@ void Tabulated_vdW_Coulomb_Energy( reax_system *system,control_params *control,
         if (j < natoms) flag = 1;
         else if (orig_i < orig_j) flag = 1;
         else if (orig_i == orig_j) {
-          if (nbr_pj->dvec[2] > SMALL) flag = 1;
-          else if (fabs(nbr_pj->dvec[2]) < SMALL) {
-            if (nbr_pj->dvec[1] > SMALL) flag = 1;
-            else if (fabs(nbr_pj->dvec[1]) < SMALL && nbr_pj->dvec[0] > SMALL)
+          rvec_ScaledSum( dvec_ij, 1.0, system->my_atoms[j].x, -1.0, system->my_atoms[i].x );
+          if (dvec_ij[2] > SMALL) flag = 1;
+          else if (fabs(dvec_ij[2]) < SMALL) {
+            if (dvec_ij[1] > SMALL) flag = 1;
+            else if (fabs(dvec_ij[1]) < SMALL && dvec_ij[0] > SMALL)
               flag = 1;
           }
         }
@@ -265,7 +267,8 @@ void Tabulated_vdW_Coulomb_Energy( reax_system *system,control_params *control,
 
       if (flag) {
 
-      r_ij   = nbr_pj->d;
+      rvec_ScaledSum( dvec_ij, 1.0, system->my_atoms[j].x, -1.0, system->my_atoms[i].x );
+      r_ij = rvec_Norm( dvec_ij );
       tmin  = MIN( type_i, type_j );
       tmax  = MAX( type_i, type_j );
       t = &( LR[tmin][tmax] );
@@ -305,8 +308,8 @@ void Tabulated_vdW_Coulomb_Energy( reax_system *system,control_params *control,
         }
       }
 
-      rvec_ScaledAdd( fi_sum, -(CEvd + CEclmb), nbr_pj->dvec );
-      rvec_ScaledAddAtomic( workspace->f[j], +(CEvd + CEclmb), nbr_pj->dvec );
+      rvec_ScaledAdd( fi_sum, -(CEvd + CEclmb), dvec_ij );
+      rvec_ScaledAddAtomic( workspace->f[j], +(CEvd + CEclmb), dvec_ij );
       }
     }
 

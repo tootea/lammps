@@ -67,7 +67,6 @@ void Hydrogen_Bonds( reax_system *system, control_params *control,
 
   #pragma omp for schedule(runtime) nowait
   for( j = 0; j < system->n; ++j ) {
-
     if( system->reax_param.sbp[system->my_atoms[j].type].p_hbond == 1 ) {
       type_j     = system->my_atoms[j].type;
       start_j    = Start_Index(j, bonds);
@@ -95,9 +94,8 @@ void Hydrogen_Bonds( reax_system *system, control_params *control,
         k = hbond_list[pk].nbr;
         type_k = system->my_atoms[k].type;
 	if (type_k < 0) continue;
-        nbr_jk = hbond_list[pk].ptr;
-        r_jk = nbr_jk->d;
-        rvec_Scale( dvec_jk, hbond_list[pk].scl, nbr_jk->dvec );
+        rvec_ScaledSum( dvec_jk, 1.0, system->my_atoms[k].x, -1.0, system->my_atoms[j].x );
+        r_jk = rvec_Norm( dvec_jk );
         rvec_MakeZero( fk_sum );
 
         for( itr = 0; itr < top; ++itr ) {

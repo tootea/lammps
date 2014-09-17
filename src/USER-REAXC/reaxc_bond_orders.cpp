@@ -160,34 +160,36 @@ void Add_dBond_to_Forces( reax_system *system, int i, int pj,
 }
 
 
-int BOp( storage *workspace, reax_list *bonds, real bo_cut,
-         int i, far_neighbor_data *nbr_pj,
+int BOp( reax_system *system, storage *workspace, reax_list *bonds, real bo_cut,
+         int i, int j,
          single_body_parameters *sbp_i, single_body_parameters *sbp_j,
          two_body_parameters *twbp ) {
-  int j, btop_i, btop_j;
-  real r2, C12, C34, C56;
+  int btop_i, btop_j;
+  real r, r2, C12, C34, C56;
   real Cln_BOp_s, Cln_BOp_pi, Cln_BOp_pi2;
   real BO, BO_s, BO_pi, BO_pi2;
   bond_data *ibond, *jbond;
   bond_order_data *bo_ij, *bo_ji;
+  rvec dvec;
 
-  j = nbr_pj->nbr;
-  r2 = SQR(nbr_pj->d);
+  rvec_ScaledSum( dvec, 1.0, system->my_atoms[j].x, -1.0, system->my_atoms[i].x );
+  r2 = rvec_Norm_Sqr( dvec );
+  r = sqrt( r2 );
 
   if( sbp_i->r_s > 0.0 && sbp_j->r_s > 0.0 ) {
-    C12 = twbp->p_bo1 * pow( nbr_pj->d / twbp->r_s, twbp->p_bo2 );
+    C12 = twbp->p_bo1 * pow( r / twbp->r_s, twbp->p_bo2 );
     BO_s = (1.0 + bo_cut) * exp( C12 );
   }
   else BO_s = C12 = 0.0;
 
   if( sbp_i->r_pi > 0.0 && sbp_j->r_pi > 0.0 ) {
-    C34 = twbp->p_bo3 * pow( nbr_pj->d / twbp->r_p, twbp->p_bo4 );
+    C34 = twbp->p_bo3 * pow( r / twbp->r_p, twbp->p_bo4 );
     BO_pi = exp( C34 );
   }
   else BO_pi = C34 = 0.0;
 
   if( sbp_i->r_pi_pi > 0.0 && sbp_j->r_pi_pi > 0.0 ) {
-    C56 = twbp->p_bo5 * pow( nbr_pj->d / twbp->r_pp, twbp->p_bo6 );
+    C56 = twbp->p_bo5 * pow( r / twbp->r_pp, twbp->p_bo6 );
     BO_pi2= exp( C56 );
   }
   else BO_pi2 = C56 = 0.0;
@@ -204,10 +206,10 @@ int BOp( storage *workspace, reax_list *bonds, real bo_cut,
 
     ibond->nbr = j;
     jbond->nbr = i;
-    ibond->d = nbr_pj->d;
-    jbond->d = nbr_pj->d;
-    rvec_Copy( ibond->dvec, nbr_pj->dvec );
-    rvec_Scale( jbond->dvec, -1, nbr_pj->dvec );
+    ibond->d = r;
+    jbond->d = r;
+    rvec_Copy( ibond->dvec, dvec );
+    rvec_Scale( jbond->dvec, -1, dvec );
     ibond->dbond_index = btop_i;
     jbond->dbond_index = btop_i;
     ibond->sym_index = btop_j;

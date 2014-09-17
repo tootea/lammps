@@ -540,7 +540,6 @@ typedef struct{
 typedef struct {
   int nbr;
   real d;
-  rvec dvec;
 } far_neighbor_data;
 
 
