@@ -539,7 +539,7 @@ typedef struct{
 
 typedef struct {
   int nbr;
-  real d;
+  float d;
 } far_neighbor_data;
 
 
