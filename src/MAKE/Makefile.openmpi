@@ -7,12 +7,12 @@ SHELL = /bin/sh
 # specify flags and libraries needed for your compiler
 
 CC =		mpic++
-CCFLAGS =	-O2 -funroll-loops -fstrict-aliasing -Wall -W -Wno-uninitialized -Wno-unused-parameter
+CCFLAGS =	-Ofast -fopenmp -funroll-loops -fstrict-aliasing -Wall -W -Wno-uninitialized -Wno-unused-parameter
 SHFLAGS =	-fPIC
 DEPFLAGS =	-M
 
 LINK =		mpic++
-LINKFLAGS =	-O2
+LINKFLAGS =	-Ofast -fopenmp
 LIB =           -lstdc++
 SIZE =		size
 
