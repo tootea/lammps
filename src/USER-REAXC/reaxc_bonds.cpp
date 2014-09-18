@@ -35,8 +35,16 @@ void Bonds( reax_system *system, control_params *control,
             simulation_data *data, storage *workspace, reax_list **lists,
             output_controls *out_control )
 {
-  int i, natoms;
+  int i, j, pj, natoms;
+  int start_i, end_i;
+  int type_i, type_j;
+  real ebond, pow_BOs_be2, exp_be12, CEbo;
   real gp3, gp4, gp7, gp10, gp37;
+  real exphu, exphua1, exphub1, exphuov, hulpov, estriph;
+  real decobdbo, decobdboua, decobdboub;
+  single_body_parameters *sbp_i, *sbp_j;
+  two_body_parameters *twbp;
+  bond_order_data *bo_ij;
   real e_bond_sum;
   reax_list *bonds;
 
@@ -49,17 +57,8 @@ void Bonds( reax_system *system, control_params *control,
   natoms = system->n;
   e_bond_sum = 0.0;
 
-  #pragma omp parallel for reduction(+: e_bond_sum) schedule(runtime)
+  #pragma omp for schedule(runtime) nowait
   for( i = 0; i < natoms; ++i ) {
-    int j, pj;
-    int start_i, end_i;
-    int type_i, type_j;
-    real ebond, pow_BOs_be2, exp_be12, CEbo;
-    real exphu, exphua1, exphub1, exphuov, hulpov, estriph;
-    real decobdbo, decobdboua, decobdboub;
-    single_body_parameters *sbp_i, *sbp_j;
-    two_body_parameters *twbp;
-    bond_order_data *bo_ij;
 
     start_i = Start_Index(i, bonds);
     end_i = End_Index(i, bonds);
@@ -144,5 +143,7 @@ void Bonds( reax_system *system, control_params *control,
     }
   }
 
+  #pragma omp atomic update
   data->my_en.e_bond += e_bond_sum;
+#pragma omp barrier
 }

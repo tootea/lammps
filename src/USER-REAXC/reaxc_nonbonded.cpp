@@ -46,13 +46,15 @@ void vdW_Coulomb_Energy( reax_system *system, control_params *control,
   real dr3gamij_1, dr3gamij_3;
   real e_ele, e_vdW, e_core, SMALL = 0.0001;
   real e_lg, de_lg, r_ij5, r_ij6, re6;
-  rvec temp, ext_press;
+  rvec temp, ext_press, fi_sum;
   two_body_parameters *twbp;
   far_neighbor_data *nbr_pj;
   reax_list *far_nbrs;
 
   // Tallying variables:
   real pe_vdw, f_tmp, delij[3];
+  real e_ele_sum, e_vdW_sum;
+  rvec ext_press_sum;
 
   natoms = system->n;
   far_nbrs = (*lists) + FAR_NBRS;
@@ -61,12 +63,17 @@ void vdW_Coulomb_Energy( reax_system *system, control_params *control,
   e_core = 0;
   e_vdW = 0;
   e_lg = de_lg = 0.0;
+  e_ele_sum = e_vdW_sum = 0.0;
+  rvec_MakeZero( ext_press_sum );
 
+  #pragma omp for schedule(runtime) nowait
   for( i = 0; i < natoms; ++i ) {
     if (system->my_atoms[i].type < 0) continue;
     start_i = Start_Index(i, far_nbrs);
     end_i   = End_Index(i, far_nbrs);
     orig_i  = system->my_atoms[i].orig_id;
+
+    rvec_MakeZero( fi_sum );
 
     for( pj = start_i; pj < end_i; ++pj ) {
       nbr_pj = &(far_nbrs->select.far_nbr_list[pj]);
@@ -120,7 +127,7 @@ void vdW_Coulomb_Energy( reax_system *system, control_params *control,
           exp2 = exp( 0.5 * twbp->alpha * (1.0 - fn13 / twbp->r_vdW) );
 
           e_vdW = twbp->D * (exp1 - 2.0 * exp2);
-          data->my_en.e_vdW += Tap * e_vdW;
+          e_vdW_sum += Tap * e_vdW;
 
           dfn13 = fn13 * powr_vdW1 / ((powr_vdW1 + powgi_vdW1) * SQR(r_ij));
 
@@ -132,7 +139,7 @@ void vdW_Coulomb_Energy( reax_system *system, control_params *control,
         exp2 = exp( 0.5 * twbp->alpha * (1.0 - r_ij / twbp->r_vdW) );
 
         e_vdW = twbp->D * (exp1 - 2.0 * exp2);
-        data->my_en.e_vdW += Tap * e_vdW;
+        e_vdW_sum += Tap * e_vdW;
 
         CEvd = dTap * e_vdW -
           Tap * twbp->D * (twbp->alpha / twbp->r_vdW) * (exp1 - exp2) / r_ij;
@@ -141,7 +148,7 @@ void vdW_Coulomb_Energy( reax_system *system, control_params *control,
       if(system->reax_param.gp.vdw_type==2 || system->reax_param.gp.vdw_type==3)
         { // innner wall
           e_core = twbp->ecore * exp(twbp->acore * (1.0-(r_ij/twbp->rcore)));
-          data->my_en.e_vdW += Tap * e_core;
+          e_vdW_sum += Tap * e_core;
 
           de_core = -(twbp->acore/twbp->rcore) * e_core;
           CEvd += dTap * e_core + Tap * de_core / r_ij;
@@ -152,7 +159,7 @@ void vdW_Coulomb_Energy( reax_system *system, control_params *control,
             r_ij6 = r_ij5 * r_ij;
             re6 = SQR(CUBE(twbp->lgre));
             e_lg = -(twbp->lgcij/( r_ij6 + re6 ));
-            data->my_en.e_vdW += Tap * e_lg;
+            e_vdW_sum += Tap * e_lg;
 
             de_lg = -6.0 * e_lg *  r_ij5 / ( r_ij6 + re6 ) ;
             CEvd += dTap * e_lg + Tap * de_lg / r_ij;
@@ -165,7 +172,7 @@ void vdW_Coulomb_Energy( reax_system *system, control_params *control,
       dr3gamij_3 = cbrt( dr3gamij_1 );
 
       tmp = Tap / dr3gamij_3;
-      data->my_en.e_ele += e_ele =
+      e_ele_sum += e_ele =
         C_ele * system->my_atoms[i].q * system->my_atoms[j].q * tmp;
 
       CEclmb = C_ele * system->my_atoms[i].q * system->my_atoms[j].q *
@@ -177,25 +184,39 @@ void vdW_Coulomb_Energy( reax_system *system, control_params *control,
         rvec_ScaledSum( delij, 1., system->my_atoms[i].x,
                               -1., system->my_atoms[j].x );
         f_tmp = -(CEvd + CEclmb);
-        system->pair_ptr->ev_tally(i,j,natoms,1,pe_vdw,e_ele,
+        #pragma omp critical(tally_virial)
+        {
+          system->pair_ptr->ev_tally(i,j,natoms,1,pe_vdw,e_ele,
                         f_tmp,delij[0],delij[1],delij[2]);
+        }
       }
 
       if( control->virial == 0 ) {
-        rvec_ScaledAdd( workspace->f[i], -(CEvd + CEclmb), nbr_pj->dvec );
-        rvec_ScaledAdd( workspace->f[j], +(CEvd + CEclmb), nbr_pj->dvec );
+        rvec_ScaledAdd( fi_sum, -(CEvd + CEclmb), nbr_pj->dvec );
+        rvec_ScaledAddAtomic( workspace->f[j], +(CEvd + CEclmb), nbr_pj->dvec );
       }
       else { /* NPT, iNPT or sNPT */
         rvec_Scale( temp, CEvd + CEclmb, nbr_pj->dvec );
 
-        rvec_ScaledAdd( workspace->f[i], -1., temp );
-        rvec_Add( workspace->f[j], temp );
+        rvec_ScaledAdd( fi_sum, -1., temp );
+        rvec_AddAtomic( workspace->f[j], temp );
 
         rvec_iMultiply( ext_press, nbr_pj->rel_box, temp );
-        rvec_Add( data->my_ext_press, ext_press );
+        rvec_Add( ext_press_sum, ext_press );
       }
       }
     }
+
+    rvec_AddAtomic( workspace->f[i], fi_sum );
+  }
+
+  #pragma omp atomic update
+  data->my_en.e_vdW += e_vdW_sum;
+  #pragma omp atomic update
+  data->my_en.e_ele += e_ele_sum;
+
+  if (control->virial != 0) {
+    rvec_AddAtomic( data->my_ext_press, ext_press_sum );
   }
 
   Compute_Polarization_Energy( system, data );
@@ -208,31 +229,30 @@ void Tabulated_vdW_Coulomb_Energy( reax_system *system,control_params *control,
                                    reax_list **lists,
                                    output_controls *out_control )
 {
-  int i, natoms;
-  real SMALL = 0.0001;
-  real ext_press_x, ext_press_y, ext_press_z, e_ele_sum, e_vdW_sum;
+  int i, j, pj, r, natoms;
+  int type_i, type_j, tmin, tmax;
+  int start_i, end_i, flag;
+  rc_tagint orig_i, orig_j;
+  real r_ij, base, dif;
+  real e_vdW, e_ele;
+  real CEvd, CEclmb, SMALL = 0.0001;
+  real f_tmp, delij[3];
+
+  rvec temp, ext_press, fi_sum;
+  far_neighbor_data *nbr_pj;
   reax_list *far_nbrs;
+  LR_lookup_table *t;
+  real e_ele_sum, e_vdW_sum;
+  rvec ext_press_sum;
 
   natoms = system->n;
   far_nbrs = (*lists) + FAR_NBRS;
 
-  ext_press_x = ext_press_y = ext_press_z = 0.0;
+  rvec_MakeZero( ext_press_sum );
   e_ele_sum = e_vdW_sum = 0.0;
 
-  #pragma omp parallel for reduction(+: ext_press_x, ext_press_y, ext_press_z, e_ele_sum, e_vdW_sum) schedule(runtime)
+  #pragma omp for schedule(runtime) nowait
   for( i = 0; i < natoms; ++i ) {
-    int j, pj, r;
-    int type_i, type_j, tmin, tmax;
-    int start_i, end_i, flag;
-    rc_tagint orig_i, orig_j;
-    real r_ij, base, dif;
-    real e_vdW, e_ele;
-    real CEvd, CEclmb;
-    real f_tmp, delij[3];
-
-    rvec temp, ext_press, fi_sum;
-    far_neighbor_data *nbr_pj;
-    LR_lookup_table *t;
 
     type_i  = system->my_atoms[i].type;
     if (type_i < 0) continue;
@@ -315,7 +335,7 @@ void Tabulated_vdW_Coulomb_Energy( reax_system *system,control_params *control,
         rvec_AddAtomic( workspace->f[j], temp );
 
         rvec_iMultiply( ext_press, nbr_pj->rel_box, temp );
-        rvec_AddToComponents( ext_press_x, ext_press_y, ext_press_z, ext_press );
+        rvec_Add( ext_press_sum, ext_press );
       }
       }
     }
@@ -323,11 +343,13 @@ void Tabulated_vdW_Coulomb_Energy( reax_system *system,control_params *control,
     rvec_AddAtomic( workspace->f[i], fi_sum );
   }
 
+  #pragma omp atomic update
   data->my_en.e_vdW += e_vdW_sum;
+  #pragma omp atomic update
   data->my_en.e_ele += e_ele_sum;
 
   if (control->virial != 0) {
-    rvec_AddFromComponents( data->my_ext_press, ext_press_x, ext_press_y, ext_press_z );
+    rvec_AddAtomic( data->my_ext_press, ext_press_sum );
   }
 
   Compute_Polarization_Energy( system, data );
@@ -338,9 +360,15 @@ void Tabulated_vdW_Coulomb_Energy( reax_system *system,control_params *control,
 void Compute_Polarization_Energy( reax_system *system, simulation_data *data )
 {
   int  i, type_i;
-  real q, en_tmp;
+  real q, en_tmp, e_pol_sum;
 
-  data->my_en.e_pol = 0.0;
+  #pragma omp single
+  {
+    data->my_en.e_pol = 0.0;
+  }
+  e_pol_sum = 0.0;
+
+  #pragma omp for schedule(runtime) nowait
   for( i = 0; i < system->n; i++ ) {
     type_i = system->my_atoms[i].type;
     if (type_i < 0) continue;
@@ -348,12 +376,19 @@ void Compute_Polarization_Energy( reax_system *system, simulation_data *data )
 
     en_tmp = KCALpMOL_to_EV * (system->reax_param.sbp[type_i].chi * q +
                 (system->reax_param.sbp[type_i].eta / 2.) * SQR(q));
-    data->my_en.e_pol += en_tmp;
+    e_pol_sum += en_tmp;
 
     /* tally into per-atom energy */
-    if( system->pair_ptr->evflag)
-      system->pair_ptr->ev_tally(i,i,system->n,1,0.0,en_tmp,0.0,0.0,0.0,0.0);
+    if( system->pair_ptr->evflag) {
+      #pragma omp critical(tally_virial)
+      {
+        system->pair_ptr->ev_tally(i,i,system->n,1,0.0,en_tmp,0.0,0.0,0.0,0.0);
+      }
+    }
   }
+
+  #pragma omp atomic update
+  data->my_en.e_pol += e_pol_sum;
 }
 
 void LR_vdW_Coulomb( reax_system *system, storage *workspace,

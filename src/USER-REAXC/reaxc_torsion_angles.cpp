@@ -112,61 +112,59 @@ void Torsion_Angles( reax_system *system, control_params *control,
                      simulation_data *data, storage *workspace,
                      reax_list **lists, output_controls *out_control )
 {
-  int j, natoms;
+  int i, j, k, l, pi, pj, pk, pl, pij, plk, natoms;
+  int type_i, type_j, type_k, type_l;
+  int start_j, end_j;
+  int start_pj, end_pj, start_pk, end_pk;
+  int updflag;
+
+  real Delta_j, Delta_k;
+  real r_ij, r_jk, r_kl, r_li;
+  real BOA_ij, BOA_jk, BOA_kl;
+
+  real exp_tor2_ij, exp_tor2_jk, exp_tor2_kl;
+  real exp_tor1, exp_tor3_DjDk, exp_tor4_DjDk, exp_tor34_inv;
+  real exp_cot2_jk, exp_cot2_ij, exp_cot2_kl;
+  real fn10, f11_DjDk, dfn11, fn12;
+  real theta_ijk, theta_jkl;
+  real sin_ijk, sin_jkl;
+  real cos_ijk, cos_jkl;
+  real tan_ijk_i, tan_jkl_i;
+  real cos_omega, cos2omega, cos3omega;
+  rvec dcos_omega_di, dcos_omega_dj, dcos_omega_dk, dcos_omega_dl;
+  real CV, cmn, CEtors1, CEtors2, CEtors3, CEtors4;
+  real CEtors5, CEtors6, CEtors7, CEtors8, CEtors9;
+  real Cconj, CEconj1, CEconj2, CEconj3;
+  real CEconj4, CEconj5, CEconj6;
+  real e_tor, e_con;
+  rvec dvec_li;
+  rvec force, ext_press, ext_press_sum, fi_sum, fj_sum, fk_sum;
+  ivec rel_box_jl;
+  // rtensor total_rtensor, temp_rtensor;
+  four_body_header *fbh;
+  four_body_parameters *fbp;
+  bond_data *pbond_ij, *pbond_jk, *pbond_kl;
+  bond_order_data *bo_ij, *bo_jk, *bo_kl;
+  three_body_interaction_data *p_ijk, *p_jkl;
   real p_tor2 = system->reax_param.gp.l[23];
   real p_tor3 = system->reax_param.gp.l[24];
   real p_tor4 = system->reax_param.gp.l[25];
   real p_cot2 = system->reax_param.gp.l[27];
-  real ext_press_x, ext_press_y, ext_press_z;
-  real e_tor_sum, e_con_sum;
-
   reax_list *bonds = (*lists) + BONDS;
   reax_list *thb_intrs = (*lists) + THREE_BODIES;
+
+  // Virial tallying variables
+  real delil[3], deljl[3], delkl[3];
+  real eng_tmp, fi_tmp[3], fj_tmp[3], fk_tmp[3];
+  real e_tor_sum, e_con_sum;
+  real ext_press_x, ext_press_y, ext_press_z;
+
   natoms = system->n;
-  ext_press_x = ext_press_y = ext_press_z = 0.0;
   e_tor_sum = e_con_sum = 0.0;
+  rvec_MakeZero( ext_press_sum );
 
-  #pragma omp parallel for reduction(+: ext_press_x, ext_press_y, ext_press_z, e_tor_sum, e_con_sum) schedule(runtime)
+  #pragma omp for schedule(runtime) nowait
   for( j = 0; j < natoms; ++j ) {
-    int i, k, l, pi, pj, pk, pl, pij, plk;
-    int type_i, type_j, type_k, type_l;
-    int start_j, end_j;
-    int start_pj, end_pj, start_pk, end_pk;
-    int updflag;
-
-    real Delta_j, Delta_k;
-    real r_ij, r_jk, r_kl, r_li;
-    real BOA_ij, BOA_jk, BOA_kl;
-
-    real exp_tor2_ij, exp_tor2_jk, exp_tor2_kl;
-    real exp_tor1, exp_tor3_DjDk, exp_tor4_DjDk, exp_tor34_inv;
-    real exp_cot2_jk, exp_cot2_ij, exp_cot2_kl;
-    real fn10, f11_DjDk, dfn11, fn12;
-    real theta_ijk, theta_jkl;
-    real sin_ijk, sin_jkl;
-    real cos_ijk, cos_jkl;
-    real tan_ijk_i, tan_jkl_i;
-    real cos_omega, cos2omega, cos3omega;
-    rvec dcos_omega_di, dcos_omega_dj, dcos_omega_dk, dcos_omega_dl;
-    real CV, cmn, CEtors1, CEtors2, CEtors3, CEtors4;
-    real CEtors5, CEtors6, CEtors7, CEtors8, CEtors9;
-    real Cconj, CEconj1, CEconj2, CEconj3;
-    real CEconj4, CEconj5, CEconj6;
-    real e_tor, e_con;
-    rvec dvec_li;
-    rvec force, ext_press, fi_sum, fj_sum, fk_sum;
-    ivec rel_box_jl;
-    // rtensor total_rtensor, temp_rtensor;
-    four_body_header *fbh;
-    four_body_parameters *fbp;
-    bond_data *pbond_ij, *pbond_jk, *pbond_kl;
-    bond_order_data *bo_ij, *bo_jk, *bo_kl;
-    three_body_interaction_data *p_ijk, *p_jkl;
-
-    // Virial tallying variables
-    real delil[3], deljl[3], delkl[3];
-    real eng_tmp, fi_tmp[3], fj_tmp[3], fk_tmp[3];
-
     type_j = system->my_atoms[j].type;
     Delta_j = workspace->Delta_boc[j];
     start_j = Start_Index(j, bonds);
@@ -399,7 +397,7 @@ void Torsion_Angles( reax_system *system, control_params *control,
                     rvec_Scale( force, CEtors7 + CEconj4, p_ijk->dcos_dk );
                     rvec_Add( fi_sum, force );
                     rvec_iMultiply( ext_press, pbond_ij->rel_box, force );
-                    rvec_AddToComponents( ext_press_x, ext_press_y, ext_press_z, ext_press );
+                    rvec_Add( ext_press_sum, ext_press );
 
                     rvec_ScaledAdd( fj_sum,
                                     CEtors7 + CEconj4, p_ijk->dcos_dj );
@@ -407,7 +405,7 @@ void Torsion_Angles( reax_system *system, control_params *control,
                     rvec_Scale( force, CEtors7 + CEconj4, p_ijk->dcos_di );
                     rvec_Add( fk_sum, force );
                     rvec_iMultiply( ext_press, pbond_jk->rel_box, force );
-                    rvec_AddToComponents( ext_press_x, ext_press_y, ext_press_z, ext_press );
+                    rvec_Add( ext_press_sum, ext_press );
 
 
                     /* dcos_theta_jkl */
@@ -417,19 +415,19 @@ void Torsion_Angles( reax_system *system, control_params *control,
                     rvec_Scale( force, CEtors8 + CEconj5, p_jkl->dcos_dj );
                     rvec_Add( fk_sum, force );
                     rvec_iMultiply( ext_press, pbond_jk->rel_box, force );
-                    rvec_AddToComponents( ext_press_x, ext_press_y, ext_press_z, ext_press );
+                    rvec_Add( ext_press_sum, ext_press );
 
                     rvec_Scale( force, CEtors8 + CEconj5, p_jkl->dcos_dk );
                     rvec_Add( workspace->f[l], force );
                     rvec_iMultiply( ext_press, rel_box_jl, force );
-                    rvec_AddToComponents( ext_press_x, ext_press_y, ext_press_z, ext_press );
+                    rvec_Add( ext_press_sum, ext_press );
 
 
                     /* dcos_omega */
                     rvec_Scale( force, CEtors9 + CEconj6, dcos_omega_di );
                     rvec_Add( fi_sum, force );
                     rvec_iMultiply( ext_press, pbond_ij->rel_box, force );
-                    rvec_AddToComponents( ext_press_x, ext_press_y, ext_press_z, ext_press );
+                    rvec_Add( ext_press_sum, ext_press );
 
                     rvec_ScaledAdd( fj_sum,
                                     CEtors9 + CEconj6, dcos_omega_dj );
@@ -437,12 +435,12 @@ void Torsion_Angles( reax_system *system, control_params *control,
                     rvec_Scale( force, CEtors9 + CEconj6, dcos_omega_dk );
                     rvec_Add( fk_sum, force );
                     rvec_iMultiply( ext_press, pbond_jk->rel_box, force );
-                    rvec_AddToComponents( ext_press_x, ext_press_y, ext_press_z, ext_press );
+                    rvec_Add( ext_press_sum, ext_press );
 
                     rvec_Scale( force, CEtors9 + CEconj6, dcos_omega_dl );
                     rvec_Add( workspace->f[l], force );
                     rvec_iMultiply( ext_press, rel_box_jl, force );
-                    rvec_AddToComponents( ext_press_x, ext_press_y, ext_press_z, ext_press );
+                    rvec_Add( ext_press_sum, ext_press );
                   }
 
                   /* tally into per-atom virials */
@@ -497,10 +495,13 @@ void Torsion_Angles( reax_system *system, control_params *control,
     } // pk loop ends
   } // j loop
 
+  #pragma omp atomic update
   data->my_en.e_tor += e_tor_sum;
+  #pragma omp atomic update
   data->my_en.e_con += e_con_sum;
 
   if (control->virial != 0) {
-    rvec_AddFromComponents( data->my_ext_press, ext_press_x, ext_press_y, ext_press_z );
+    rvec_AddAtomic( data->my_ext_press, ext_press_sum );
   }
+#pragma omp barrier
 }

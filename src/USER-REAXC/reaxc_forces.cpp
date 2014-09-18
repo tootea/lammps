@@ -380,8 +380,18 @@ void Init_Forces_noQEq( reax_system *system, control_params *control,
                         simulation_data *data, storage *workspace,
                         reax_list **lists, output_controls *out_control,
                         MPI_Comm comm ) {
-  int i, num_bonds, num_hbonds, renbr;
+  int i, j, pj;
+  int start_i, end_i;
+  int type_i, type_j;
+  int num_bonds, num_hbonds;
+  int ihb, jhb, ihb_top, jhb_top;
+  int local, flag, renbr;
+  real cutoff;
   reax_list *far_nbrs, *bonds, *hbonds;
+  single_body_parameters *sbp_i, *sbp_j;
+  two_body_parameters *twbp;
+  far_neighbor_data *nbr_pj;
+  reax_atom *atom_i, *atom_j;
 
   far_nbrs = *lists + FAR_NBRS;
   bonds = *lists + BONDS;
@@ -395,22 +405,15 @@ void Init_Forces_noQEq( reax_system *system, control_params *control,
 
   num_bonds = 0;
   num_hbonds = 0;
+  #pragma omp single
+  {
+    workspace->realloc.num_bonds = 0;
+    workspace->realloc.num_hbonds = 0;
+  }
   renbr = (data->step-data->prev_steps) % control->reneighbor == 0;
 
-  #pragma omp parallel for reduction(+: num_bonds, num_hbonds) schedule(runtime)
+  #pragma omp for schedule(runtime) nowait
   for( i = 0; i < system->N; ++i ) {
-    int j, pj;
-    int start_i, end_i;
-    int type_i, type_j;
-    int btop_i = 0;
-    int ihb, jhb, ihb_top, jhb_top;
-    int local, flag;
-    real cutoff;
-    single_body_parameters *sbp_i, *sbp_j;
-    two_body_parameters *twbp;
-    far_neighbor_data *nbr_pj;
-    reax_atom *atom_i, *atom_j;
-
     atom_i = &(system->my_atoms[i]);
     type_i  = atom_i->type;
     if (type_i < 0) continue;
@@ -508,11 +511,17 @@ void Init_Forces_noQEq( reax_system *system, control_params *control,
   }
 
 
-  workspace->realloc.num_bonds = num_bonds;
-  workspace->realloc.num_hbonds = num_hbonds;
+  #pragma omp atomic update
+  workspace->realloc.num_bonds += num_bonds;
+  #pragma omp atomic update
+  workspace->realloc.num_hbonds += num_hbonds;
 
+  #pragma omp barrier
+  #pragma omp single
+  {
   Validate_Lists( system, workspace, lists, data->step,
                   system->n, system->N, system->numH, comm );
+  }
 }
 
 
@@ -652,6 +661,8 @@ void Compute_Forces( reax_system *system, control_params *control,
     Init_Forces( system, control, data, workspace, lists, out_control, comm );
   else
 #endif
+  #pragma omp parallel
+  {
     Init_Forces_noQEq( system, control, data, workspace,
                        lists, out_control, comm );
 
@@ -663,7 +674,7 @@ void Compute_Forces( reax_system *system, control_params *control,
   /********* nonbonded interactions ************/
   Compute_NonBonded_Forces( system, control, data, workspace,
                             lists, out_control, mpi_data->world );
-
+  }
   /*********** total force ***************/
   Compute_Total_Force( system, control, data, workspace, lists, mpi_data );
 

@@ -53,7 +53,8 @@ void Atom_Energy( reax_system *system, control_params *control,
   bond_data *pbond;
   bond_order_data *bo_ij;
   reax_list *bonds = (*lists) + BONDS;
-
+#pragma omp single
+  {
   /* Initialize parameters */
   p_lp3 = system->reax_param.gp.l[5];
   p_ovun3 = system->reax_param.gp.l[32];
@@ -90,8 +91,12 @@ void Atom_Energy( reax_system *system, control_params *control,
     if (numbonds > 0) workspace->CdDelta[i] += CElp;  // lp - 1st term
 
     /* tally into per-atom energy */
-    if( system->pair_ptr->evflag)
-      system->pair_ptr->ev_tally(i,i,system->n,1,e_lp,0.0,0.0,0.0,0.0,0.0);
+    if( system->pair_ptr->evflag) {
+      #pragma omp critical(tally_virial)
+      {
+        system->pair_ptr->ev_tally(i,i,system->n,1,e_lp,0.0,0.0,0.0,0.0,0.0);
+      }
+    }
 
     /* correction for C2 */
     if( p_lp3 > 0.001 && !strcmp(system->reax_param.sbp[type_i].name, "C") )
@@ -116,9 +121,12 @@ void Atom_Energy( reax_system *system, control_params *control,
             workspace->CdDelta[i] += deahu2dsbo;
 
             /* tally into per-atom energy */
-            if( system->pair_ptr->evflag)
-              system->pair_ptr->ev_tally(i,j,system->n,1,e_lph,0.0,0.0,0.0,0.0,0.0);
-
+            if( system->pair_ptr->evflag) {
+              #pragma omp critical(tally_virial)
+              {
+                system->pair_ptr->ev_tally(i,j,system->n,1,e_lph,0.0,0.0,0.0,0.0,0.0);
+              }
+            }
           }
         }
       }
@@ -203,7 +211,10 @@ void Atom_Energy( reax_system *system, control_params *control,
     if( system->pair_ptr->evflag) {
       eng_tmp = e_ov;
       if (numbonds > 0) eng_tmp += e_un;
-      system->pair_ptr->ev_tally(i,i,system->n,1,eng_tmp,0.0,0.0,0.0,0.0,0.0);
+      #pragma omp critical(tally_virial)
+      {
+        system->pair_ptr->ev_tally(i,i,system->n,1,eng_tmp,0.0,0.0,0.0,0.0,0.0);
+      }
     }
 
     /* forces */
@@ -237,4 +248,5 @@ void Atom_Energy( reax_system *system, control_params *control,
     }
 
   }
+}
 }
