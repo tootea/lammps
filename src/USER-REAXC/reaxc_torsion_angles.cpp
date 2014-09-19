@@ -137,6 +137,7 @@ void Torsion_Angles( reax_system *system, control_params *control,
   real Cconj, CEconj1, CEconj2, CEconj3;
   real CEconj4, CEconj5, CEconj6;
   real e_tor, e_con;
+  real CdDelta_jk, Cdbo_ij, Cdbo_jk, Cdbopi_jk;
   rvec dvec_li;
   rvec force, ext_press, ext_press_sum, fi_sum, fj_sum, fk_sum;
   ivec rel_box_jl;
@@ -209,6 +210,7 @@ void Torsion_Angles( reax_system *system, control_params *control,
 
           rvec_MakeZero( fj_sum );
           rvec_MakeZero( fk_sum );
+          Cdbo_jk = Cdbopi_jk = CdDelta_jk = 0.0;
           updflag = 0;
 
           for( pi = start_pk; pi < end_pk; ++pi ) {
@@ -237,6 +239,7 @@ void Torsion_Angles( reax_system *system, control_params *control,
               exp_cot2_ij = bo_ij->exp_cot2;
 
               rvec_MakeZero( fi_sum );
+              Cdbo_ij = 0.0;
 
               for( pl = start_pj; pl < end_pj; ++pl ) {
                 p_jkl = &( thb_intrs->select.three_body_list[pl] );
@@ -350,16 +353,10 @@ void Torsion_Angles( reax_system *system, control_params *control,
                   /* end 4-body conjugation energy */
 
                   /* forces */
-                  #pragma omp atomic update
-                  bo_jk->Cdbopi += CEtors2;
-                  #pragma omp atomic update
-                  workspace->CdDelta[j] += CEtors3;
-                  #pragma omp atomic update
-                  workspace->CdDelta[k] += CEtors3;
-                  #pragma omp atomic update
-                  bo_ij->Cdbo += (CEtors4 + CEconj1);
-                  #pragma omp atomic update
-                  bo_jk->Cdbo += (CEtors5 + CEconj2);
+                  Cdbopi_jk += CEtors2;
+                  CdDelta_jk += CEtors3;
+                  Cdbo_ij += (CEtors4 + CEconj1);
+                  Cdbo_jk += (CEtors5 + CEconj2);
                   #pragma omp atomic update
                   bo_kl->Cdbo += (CEtors6 + CEconj3);
 
@@ -482,6 +479,8 @@ void Torsion_Angles( reax_system *system, control_params *control,
 
               if( updflag ) {
                 rvec_AddAtomic( workspace->f[i], fi_sum );
+                #pragma omp atomic update
+                bo_ij->Cdbo += Cdbo_ij;
               }
             } // pi check ends
           } // pi loop ends
@@ -489,6 +488,14 @@ void Torsion_Angles( reax_system *system, control_params *control,
           if( updflag ) {
             rvec_AddAtomic( workspace->f[k], fk_sum );
             rvec_AddAtomic( workspace->f[j], fj_sum );
+            #pragma omp atomic update
+            bo_jk->Cdbo += Cdbo_jk;
+            #pragma omp atomic update
+            bo_jk->Cdbopi += Cdbopi_jk;
+            #pragma omp atomic update
+            workspace->CdDelta[j] += CdDelta_jk;
+            #pragma omp atomic update
+            workspace->CdDelta[k] += CdDelta_jk;
           }
         } // k-j neighbor check ends
       } // j-k neighbor check ends
@@ -503,5 +510,4 @@ void Torsion_Angles( reax_system *system, control_params *control,
   if (control->virial != 0) {
     rvec_AddAtomic( data->my_ext_press, ext_press_sum );
   }
-#pragma omp barrier
 }

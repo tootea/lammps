@@ -136,6 +136,7 @@ void Hydrogen_Bonds( reax_system *system, control_params *control,
               (-hbp->r0_hb / SQR(r_jk) + 1.0 / hbp->r0_hb) * e_hb;
 
             /* hydrogen bond forces */
+            #pragma omp atomic update
             bo_ij->Cdbo += CEhb1; // dbo term
 
             if( control->virial == 0 ) {

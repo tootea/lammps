@@ -113,6 +113,7 @@ void Valence_Angles( reax_system *system, control_params *control,
   real Ctheta_0, theta_0, theta_00, theta, cos_theta, sin_theta;
   real BOA_ij, BOA_jk;
   rvec force, ext_press, ext_press_sum, fi_sum, fj_sum, fk_sum;
+  real CdDelta_i, CdDelta_j, CdDelta_k;
 
   // Tallying variables
   real eng_tmp, fi_tmp[3], fj_tmp[3], fk_tmp[3];
@@ -143,61 +144,62 @@ void Valence_Angles( reax_system *system, control_params *control,
   e_ang_sum = e_pen_sum = e_coa_sum = 0.0;
   rvec_MakeZero(ext_press_sum);
 
-#pragma omp single
-{
-  for( j = 0; j < system->N; ++j ) {         // Ray: the first one with system->N
-    type_j = system->my_atoms[j].type;
-    if (type_j < 0) continue;
-    start_j = Start_Index(j, bonds);
-    end_j = End_Index(j, bonds);
-    njnbr = 0;
-    njnbr_local = 0;
+  #pragma omp single
+  {
+    for( j = 0; j < system->N; ++j ) {         // Ray: the first one with system->N
+      type_j = system->my_atoms[j].type;
+      if (type_j < 0) continue;
+      start_j = Start_Index(j, bonds);
+      end_j = End_Index(j, bonds);
+      njnbr = 0;
+      njnbr_local = 0;
 
-    for( pi = start_j; pi < end_j; ++pi ) {
-      pbond_ij = &(bonds->select.bond_list[pi]);
-      bo_ij = &(pbond_ij->bo_data);
-      BOA_ij = bo_ij->BOA;
-      if (BOA_ij > 0.0) {
-        njnbr++;
-        if (pbond_ij->nbr < system->n) {
-          njnbr_local++;
-        }
-      }
-    }
-
-
-    for( pi = start_j; pi < end_j; ++pi ) {
-      Set_Start_Index( pi, num_thb_intrs, thb_intrs );
-      pbond_ij = &(bonds->select.bond_list[pi]);
-      bo_ij = &(pbond_ij->bo_data);
-      BOA_ij = bo_ij->BOA;
-
-      if( BOA_ij > 0.0 ) {
-        if( j < system->n || pbond_ij->nbr < system->n ) {
-          num_thb_intrs += njnbr - 1;
-        }
-        else {
-          num_thb_intrs += njnbr_local;
+      for( pi = start_j; pi < end_j; ++pi ) {
+        pbond_ij = &(bonds->select.bond_list[pi]);
+        bo_ij = &(pbond_ij->bo_data);
+        BOA_ij = bo_ij->BOA;
+        if (BOA_ij > 0.0) {
+          njnbr++;
+          if (pbond_ij->nbr < system->n) {
+            njnbr_local++;
+          }
         }
       }
 
-      Set_End_Index(pi, num_thb_intrs, thb_intrs );
+      for( pi = start_j; pi < end_j; ++pi ) {
+        Set_Start_Index( pi, num_thb_intrs, thb_intrs );
+        pbond_ij = &(bonds->select.bond_list[pi]);
+        bo_ij = &(pbond_ij->bo_data);
+        BOA_ij = bo_ij->BOA;
+
+        if( BOA_ij > 0.0 ) {
+          if( j < system->n || pbond_ij->nbr < system->n ) {
+            num_thb_intrs += njnbr - 1;
+          }
+          else {
+            num_thb_intrs += njnbr_local;
+          }
+        }
+
+        Set_End_Index(pi, num_thb_intrs, thb_intrs );
+      }
+    }
+
+    if( num_thb_intrs >= thb_intrs->num_intrs * DANGER_ZONE ) {
+      workspace->realloc.num_3body = num_thb_intrs;
+      if( num_thb_intrs > thb_intrs->num_intrs ) {
+        fprintf( stderr, "step%d-ran out of space on angle_list: top=%d, max=%d",
+                data->step, num_thb_intrs, thb_intrs->num_intrs );
+        MPI_Abort( MPI_COMM_WORLD, INSUFFICIENT_MEMORY );
+      }
     }
   }
 
-  if( num_thb_intrs >= thb_intrs->num_intrs * DANGER_ZONE ) {
-    workspace->realloc.num_3body = num_thb_intrs;
-    if( num_thb_intrs > thb_intrs->num_intrs ) {
-      fprintf( stderr, "step%d-ran out of space on angle_list: top=%d, max=%d",
-               data->step, num_thb_intrs, thb_intrs->num_intrs );
-      MPI_Abort( MPI_COMM_WORLD, INSUFFICIENT_MEMORY );
-    }
-  }
-}
-  #pragma omp for schedule(runtime) nowait
+  #pragma omp for schedule(runtime)
   for( j = 0; j < system->N; ++j ) {         // Ray: the first one with system->N
     updflag = 0;
     rvec_MakeZero( fj_sum );
+    CdDelta_j = 0.0;
 
     type_j = system->my_atoms[j].type;
     if (type_j < 0) continue;
@@ -266,6 +268,7 @@ void Valence_Angles( reax_system *system, control_params *control,
         i = pbond_ij->nbr;
         type_i = system->my_atoms[i].type;
         rvec_MakeZero( fi_sum );
+        CdDelta_i = 0.0;
 
         trm_coa34_ij =
           -p_coa3 * SQR(workspace->total_bond_order[i]-BOA_ij) +
@@ -336,6 +339,7 @@ void Valence_Angles( reax_system *system, control_params *control,
                 sin_theta = 1.0e-5;
 
               rvec_MakeZero( fk_sum );
+              CdDelta_k = 0.0;
 
               for( cnt = 0; cnt < thbh->cnt; ++cnt ) {
                 if( fabs(thbh->prm[cnt].p_val1) > 0.001 ) {
@@ -430,12 +434,10 @@ void Valence_Angles( reax_system *system, control_params *control,
                   /* FORCES */
                   bo_ij->Cdbo += (CEval1 + CEpen2 + (CEcoa1 - CEcoa4));
                   bo_jk->Cdbo += (CEval2 + CEpen3 + (CEcoa2 - CEcoa5));
-                  #pragma omp atomic update
-                  workspace->CdDelta[j] += ((CEval3 + CEval7) + CEpen1 + CEcoa3);
-                  #pragma omp atomic update
-                  workspace->CdDelta[i] += CEcoa4;
-                  #pragma omp atomic update
-                  workspace->CdDelta[k] += CEcoa5;
+
+                  CdDelta_j += ((CEval3 + CEval7) + CEpen1 + CEcoa3);
+                  CdDelta_i += CEcoa4;
+                  CdDelta_k += CEcoa5;
 
                   for( t = start_j; t < end_j; ++t ) {
                       pbond_jt = &( bonds->select.bond_list[t] );
@@ -496,6 +498,8 @@ void Valence_Angles( reax_system *system, control_params *control,
 
               if( updflag ) {
                 rvec_AddAtomic( workspace->f[k], fk_sum );
+                #pragma omp atomic update
+                workspace->CdDelta[k] += CdDelta_k;
               }
             }
           }
@@ -503,12 +507,16 @@ void Valence_Angles( reax_system *system, control_params *control,
 
         if( updflag ) {
           rvec_AddAtomic( workspace->f[i], fi_sum );
+          #pragma omp atomic update
+          workspace->CdDelta[i] += CdDelta_i;
         }
       }
     }
 
     if( updflag ) {
       rvec_AddAtomic( workspace->f[j], fj_sum );
+      #pragma omp atomic update
+      workspace->CdDelta[j] += CdDelta_j;
     }
   }
 
@@ -522,6 +530,4 @@ void Valence_Angles( reax_system *system, control_params *control,
   if (control->virial != 0) {
     rvec_AddAtomic( data->my_ext_press, ext_press_sum );
   }
-
-  #pragma omp barrier
 }

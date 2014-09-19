@@ -517,7 +517,7 @@ void Init_Forces_noQEq( reax_system *system, control_params *control,
   workspace->realloc.num_hbonds += num_hbonds;
 
   #pragma omp barrier
-  #pragma omp single
+  #pragma omp single nowait
   {
   Validate_Lists( system, workspace, lists, data->step,
                   system->n, system->N, system->numH, comm );

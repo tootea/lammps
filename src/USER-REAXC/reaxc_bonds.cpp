@@ -145,5 +145,4 @@ void Bonds( reax_system *system, control_params *control,
 
   #pragma omp atomic update
   data->my_en.e_bond += e_bond_sum;
-#pragma omp barrier
 }
