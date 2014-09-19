@@ -188,12 +188,15 @@ void Add_dBond_to_Forces( reax_system *system, int i, int pj,
   rvec_ScaledAdd( temp, coef.C1dbopi2, bo_ij->dln_BOp_pi2 );
   rvec_ScaledAdd( temp, coef.C2dbopi2, bo_ij->dBOp );
   rvec_ScaledAdd( temp, coef.C3dbopi2, workspace->dDeltap_self[i] );
-  rvec_Add( workspace->f[i], temp );
+  rvec_AddAtomic( workspace->f[i], temp );
 
   if( system->pair_ptr->vflag_atom) {
     rvec_Scale(fi_tmp, -1.0, temp);
     rvec_ScaledSum( delij, 1., system->my_atoms[i].x,-1., system->my_atoms[j].x );
-    system->pair_ptr->v_tally(i,fi_tmp,delij);
+    #pragma omp critical(tally_virial)
+    {
+      system->pair_ptr->v_tally(i,fi_tmp,delij);
+    }
   }
 
   // forces on j
@@ -207,12 +210,15 @@ void Add_dBond_to_Forces( reax_system *system, int i, int pj,
   rvec_ScaledAdd( temp, -coef.C1dbopi2, bo_ij->dln_BOp_pi2 );
   rvec_ScaledAdd( temp, -coef.C2dbopi2, bo_ij->dBOp );
   rvec_ScaledAdd( temp,  coef.C4dbopi2, workspace->dDeltap_self[j]);
-  rvec_Add( workspace->f[j], temp );
+  rvec_AddAtomic( workspace->f[j], temp );
 
   if( system->pair_ptr->vflag_atom) {
     rvec_Scale(fj_tmp, -1.0, temp);
     rvec_ScaledSum( delji, 1., system->my_atoms[j].x,-1., system->my_atoms[i].x );
-    system->pair_ptr->v_tally(j,fj_tmp,delji);
+    #pragma omp critical(tally_virial)
+    {
+      system->pair_ptr->v_tally(j,fj_tmp,delji);
+    }
   }
 
   // forces on k: i neighbor
@@ -224,14 +230,17 @@ void Add_dBond_to_Forces( reax_system *system, int i, int pj,
     rvec_ScaledAdd( temp, -coef.C2dDelta, nbr_k->bo_data.dBOp);
     rvec_ScaledAdd( temp, -coef.C3dbopi,  nbr_k->bo_data.dBOp);
     rvec_ScaledAdd( temp, -coef.C3dbopi2, nbr_k->bo_data.dBOp);
-    rvec_Add( workspace->f[k], temp );
+    rvec_AddAtomic( workspace->f[k], temp );
 
     if( system->pair_ptr->vflag_atom ) {
       rvec_Scale(fk_tmp, -1.0, temp);
       rvec_ScaledSum(delki,1.,system->my_atoms[k].x,-1.,system->my_atoms[i].x);
-      system->pair_ptr->v_tally(k,fk_tmp,delki);
       rvec_ScaledSum(delkj,1.,system->my_atoms[k].x,-1.,system->my_atoms[j].x);
-      system->pair_ptr->v_tally(k,fk_tmp,delkj);
+      #pragma omp critical(tally_virial)
+      {
+        system->pair_ptr->v_tally(k,fk_tmp,delki);
+        system->pair_ptr->v_tally(k,fk_tmp,delkj);
+      }
     }
   }
 
@@ -244,14 +253,17 @@ void Add_dBond_to_Forces( reax_system *system, int i, int pj,
     rvec_ScaledAdd( temp, -coef.C3dDelta, nbr_k->bo_data.dBOp);
     rvec_ScaledAdd( temp, -coef.C4dbopi,  nbr_k->bo_data.dBOp);
     rvec_ScaledAdd( temp, -coef.C4dbopi2, nbr_k->bo_data.dBOp);
-    rvec_Add( workspace->f[k], temp );
+    rvec_AddAtomic( workspace->f[k], temp );
 
     if( system->pair_ptr->vflag_atom ) {
       rvec_Scale(fk_tmp, -1.0, temp);
       rvec_ScaledSum(delki,1.,system->my_atoms[k].x,-1.,system->my_atoms[i].x);
-      system->pair_ptr->v_tally(k,fk_tmp,delki);
       rvec_ScaledSum(delkj,1.,system->my_atoms[k].x,-1.,system->my_atoms[j].x);
-      system->pair_ptr->v_tally(k,fk_tmp,delkj);
+      #pragma omp critical(tally_virial)
+      {
+        system->pair_ptr->v_tally(k,fk_tmp,delki);
+        system->pair_ptr->v_tally(k,fk_tmp,delkj);
+      }
     }
   }
 

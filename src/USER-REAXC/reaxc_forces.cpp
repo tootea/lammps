@@ -101,15 +101,23 @@ void Compute_Total_Force( reax_system *system, control_params *control,
   int i, pj;
   reax_list *bonds = (*lists) + BONDS;
 
-  for( i = 0; i < system->N; ++i )
-    for( pj = Start_Index(i, bonds); pj < End_Index(i, bonds); ++pj )
-      if( i < bonds->select.bond_list[pj].nbr ) {
-        if( control->virial == 0 )
-          Add_dBond_to_Forces( system, i, pj, workspace, lists );
-        else
-          Add_dBond_to_Forces_NPT( i, pj, data, workspace, lists );
-      }
-
+  #pragma omp barrier
+  if( control->virial == 0 ) {
+    #pragma omp for schedule(runtime) nowait
+    for( i = 0; i < system->N; ++i )
+      for( pj = Start_Index(i, bonds); pj < End_Index(i, bonds); ++pj )
+        if( i < bonds->select.bond_list[pj].nbr ) {
+            Add_dBond_to_Forces( system, i, pj, workspace, lists );
+        }
+  }
+  else {
+    #pragma omp single
+    for( i = 0; i < system->N; ++i )
+      for( pj = Start_Index(i, bonds); pj < End_Index(i, bonds); ++pj )
+        if( i < bonds->select.bond_list[pj].nbr ) {
+            Add_dBond_to_Forces_NPT( i, pj, data, workspace, lists );
+        }
+  }
 }
 
 void Validate_Lists( reax_system *system, storage *workspace, reax_list **lists,
@@ -674,8 +682,8 @@ void Compute_Forces( reax_system *system, control_params *control,
   /********* nonbonded interactions ************/
   Compute_NonBonded_Forces( system, control, data, workspace,
                             lists, out_control, mpi_data->world );
-  }
+
   /*********** total force ***************/
   Compute_Total_Force( system, control, data, workspace, lists, mpi_data );
-
+  }
 }
