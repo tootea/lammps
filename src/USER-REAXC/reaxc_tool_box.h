@@ -67,37 +67,46 @@ void sfree( void*, const char* );
 
 inline void Init_Locks( reax_system *system, storage *workspace )
 {
+#ifdef _OPENMP
   int i;
 
   workspace->num_locks = system->total_cap;
   for( i = 0; i < workspace->num_locks; ++i ) {
     omp_init_lock( &(workspace->atom_lock[i]) );
   }
+#endif
 }
 
 inline void Destroy_Locks( storage *workspace )
 {
+#ifdef _OPENMP
   int i;
 
   for( i = 0; i < workspace->num_locks; ++i ) {
     omp_destroy_lock( &(workspace->atom_lock[i]) );
   }
+#endif
 }
 
 inline void Lock_Atom( storage *workspace, int i )
 {
+#ifdef _OPENMP
   omp_set_lock( &(workspace->atom_lock[i]) );
   #pragma omp flush
+#endif
 }
 
 inline void Unlock_Atom( storage *workspace, int i )
 {
+#ifdef _OPENMP
   #pragma omp flush
   omp_unset_lock( &(workspace->atom_lock[i]) );
+#endif
 }
 
 inline void Lock_Pair( storage *workspace, int i, int j )
 {
+#ifdef _OPENMP
   if (i < j) {
     omp_set_lock( &(workspace->atom_lock[i]) );
     omp_set_lock( &(workspace->atom_lock[j]) );
@@ -107,10 +116,12 @@ inline void Lock_Pair( storage *workspace, int i, int j )
     omp_set_lock( &(workspace->atom_lock[i]) );
   }
   #pragma omp flush
+#endif
 }
 
 inline void Unlock_Pair( storage *workspace, int i, int j )
 {
+#ifdef _OPENMP
   #pragma omp flush
   if (i < j) {
     omp_unset_lock( &(workspace->atom_lock[j]) );
@@ -120,6 +131,7 @@ inline void Unlock_Pair( storage *workspace, int i, int j )
     omp_unset_lock( &(workspace->atom_lock[i]) );
     omp_unset_lock( &(workspace->atom_lock[j]) );
   }
+#endif
 }
 
 #endif
