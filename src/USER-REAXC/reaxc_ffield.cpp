@@ -663,6 +663,9 @@ char Read_Force_Field( char *ffield_file, reax_interaction *reax,
       reax->tbp[k][j].ovc       = val;
 
       val = (*rd.get_real)(&rd, &(rec[7]));
+    } else {
+      /* line 2 */
+      c = (*rd.read_record)(&rd, rec);
     }
   }
 
