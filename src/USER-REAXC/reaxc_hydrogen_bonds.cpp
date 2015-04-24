@@ -34,7 +34,7 @@
 
 void Hydrogen_Bonds( reax_system *system, control_params *control,
                      simulation_data *data, storage *workspace,
-                     reax_list **lists, output_controls *out_control )
+                     reax_list **lists, output_controls *out_control, MPI_Comm comm )
 {
   int  i, j, k, pi, pk;
   int  type_i, type_j, type_k;

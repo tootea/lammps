@@ -41,7 +41,7 @@
 
 void Dummy_Interaction( reax_system *system, control_params *control,
 			simulation_data *data, storage *workspace,
-			reax_list **lists, output_controls *out_control )
+			reax_list **lists, output_controls *out_control, MPI_Comm comm )
 {
 }
 
@@ -73,7 +73,7 @@ void Compute_Bonded_Forces( reax_system *system, control_params *control,
   /* Implement all force calls as function pointers */
   for( i = 0; i < NUM_INTRS; i++ ) {
     (control->Interaction_Functions[i])( system, control, data, workspace,
-				lists, out_control );
+				lists, out_control, comm );
   }
 }
 
@@ -87,10 +87,10 @@ void Compute_NonBonded_Forces( reax_system *system, control_params *control,
   /* van der Waals and Coulomb interactions */
   if( control->tabulate == 0 )
     vdW_Coulomb_Energy( system, control, data, workspace,
-                        lists, out_control );
+                        lists, out_control, comm );
   else
     Tabulated_vdW_Coulomb_Energy( system, control, data, workspace,
-                                  lists, out_control );
+                                  lists, out_control, comm );
 }
 
 

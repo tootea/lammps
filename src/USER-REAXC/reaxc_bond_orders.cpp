@@ -270,7 +270,7 @@ int compare_bonds( const void *p1, const void *p2 )
 
 
 void BO( reax_system *system, control_params *control, simulation_data *data,
-         storage *workspace, reax_list **lists, output_controls *out_control )
+         storage *workspace, reax_list **lists, output_controls *out_control, MPI_Comm comm )
 {
   int i, j, pj, type_i, type_j;
   int start_i, end_i, sym_index;
@@ -461,6 +461,13 @@ void BO( reax_system *system, control_params *control, simulation_data *data,
 
         workspace->total_bond_order[i] += bo_ij->BO; //now keeps total_BO
       }
+    }
+
+    if( !( workspace->total_bond_order[i] >= 0 &&
+            workspace->total_bond_order[i] < system->my_atoms[i].num_bonds * 4) ) {
+        fprintf( stderr, "step%d-invalid total bond order: i=%d num_bonds(i)=%d total_BO(i)=%f\n",
+                 data->step, i, system->my_atoms[i].num_bonds, workspace->total_bond_order[i] );
+        MPI_Abort( comm, INVALID_INPUT );
     }
   }
 

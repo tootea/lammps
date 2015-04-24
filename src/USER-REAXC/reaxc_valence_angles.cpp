@@ -87,7 +87,7 @@ void Calculate_dCos_Theta( rvec dvec_ji, real d_ji, rvec dvec_jk, real d_jk,
 
 void Valence_Angles( reax_system *system, control_params *control,
                      simulation_data *data, storage *workspace,
-                     reax_list **lists, output_controls *out_control )
+                     reax_list **lists, output_controls *out_control, MPI_Comm comm )
 {
   int i, j, pi, k, pk, t;
   int type_i, type_j, type_k;

@@ -59,5 +59,5 @@ void Add_dBond_to_Forces_NPT( int, int, simulation_data*,
 int BOp( reax_system*, storage*, reax_list*, real, int, int,
         single_body_parameters*, single_body_parameters*, two_body_parameters*);
 void BO( reax_system*, control_params*, simulation_data*,
-         storage*, reax_list**, output_controls* );
+         storage*, reax_list**, output_controls*, MPI_Comm );
 #endif
