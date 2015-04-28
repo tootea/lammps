@@ -30,6 +30,6 @@
 #include "reaxc_types.h"
 
 void Atom_Energy( reax_system*, control_params*, simulation_data*,
-                  storage*, reax_list**, output_controls*, MPI_Comm );
+                  storage*, reax_list**, output_controls* );
 
 #endif

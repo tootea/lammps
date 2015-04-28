@@ -110,7 +110,7 @@ real Calculate_Cos_Omega( rvec dvec_ij, real r_ij,
 
 void Torsion_Angles( reax_system *system, control_params *control,
                      simulation_data *data, storage *workspace,
-                     reax_list **lists, output_controls *out_control, MPI_Comm comm )
+                     reax_list **lists, output_controls *out_control )
 {
   int i, j, k, l, pi, pj, pk, pl, pij, plk, natoms;
   int type_i, type_j, type_k, type_l;

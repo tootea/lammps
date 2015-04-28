@@ -768,7 +768,7 @@ extern LR_lookup_table **LR;
 /* needs to be before control_params due to cyclic dependency */
 typedef void (*interaction_function) (reax_system*, struct control_params_t*,
                                       simulation_data*, storage*,
-                                      reax_list**, output_controls*, MPI_Comm);
+                                      reax_list**, output_controls*);
 
 /* system control parameters */
 typedef struct control_params_t

@@ -30,11 +30,11 @@
 #include "reaxc_types.h"
 
 void vdW_Coulomb_Energy( reax_system*, control_params*, simulation_data*,
-                         storage*, reax_list**, output_controls*, MPI_Comm );
+                         storage*, reax_list**, output_controls* );
 
 void Tabulated_vdW_Coulomb_Energy( reax_system*, control_params*,
                                    simulation_data*, storage*,
-                                   reax_list**, output_controls*, MPI_Comm );
+                                   reax_list**, output_controls* );
 
 void Compute_Polarization_Energy( reax_system*, simulation_data* );
 
