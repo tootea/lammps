@@ -29,10 +29,6 @@
 
 using namespace LAMMPS_NS;
 
-// allocate space for static class variable
-
-Dump *Dump::dumpptr;
-
 #define BIG 1.0e20
 #define EPSILON 1.0e-6
 
@@ -620,11 +616,10 @@ void Dump::sort()
   }
 
   if (!reorderflag) {
-    dumpptr = this;
     for (i = 0; i < nme; i++) index[i] = i;
-    if (sortcol == 0) qsort(index,nme,sizeof(int),idcompare);
-    else if (sortorder == ASCEND) qsort(index,nme,sizeof(int),bufcompare);
-    else qsort(index,nme,sizeof(int),bufcompare_reverse);
+    if (sortcol == 0) qsort_r(index,nme,sizeof(int),idcompare,this);
+    else if (sortorder == ASCEND) qsort_r(index,nme,sizeof(int),bufcompare,this);
+    else qsort_r(index,nme,sizeof(int),bufcompare_reverse,this);
   }
 
   // reset buf size and maxbuf to largest of any post-sort nme values
@@ -649,11 +644,11 @@ void Dump::sort()
 /* ----------------------------------------------------------------------
    compare two atom IDs
    called via qsort() in sort() method
-   is a static method so access data via dumpptr
 ------------------------------------------------------------------------- */
 
-int Dump::idcompare(const void *pi, const void *pj)
+int Dump::idcompare(const void *pi, const void *pj, void *arg)
 {
+  Dump *dumpptr = (Dump *) arg;
   tagint *idsort = dumpptr->idsort;
 
   int i = *((int *) pi);
@@ -667,12 +662,12 @@ int Dump::idcompare(const void *pi, const void *pj)
 /* ----------------------------------------------------------------------
    compare two buffer values with size_one stride
    called via qsort() in sort() method
-   is a static method so access data via dumpptr
    sort in ASCENDing order
 ------------------------------------------------------------------------- */
 
-int Dump::bufcompare(const void *pi, const void *pj)
+int Dump::bufcompare(const void *pi, const void *pj, void *arg)
 {
+  Dump *dumpptr = (Dump *) arg;
   double *bufsort = dumpptr->bufsort;
   int size_one = dumpptr->size_one;
   int sortcolm1 = dumpptr->sortcolm1;
@@ -688,12 +683,12 @@ int Dump::bufcompare(const void *pi, const void *pj)
 /* ----------------------------------------------------------------------
    compare two buffer values with size_one stride
    called via qsort() in sort() method
-   is a static method so access data via dumpptr
    sort in DESCENDing order
 ------------------------------------------------------------------------- */
 
-int Dump::bufcompare_reverse(const void *pi, const void *pj)
+int Dump::bufcompare_reverse(const void *pi, const void *pj, void *arg)
 {
+  Dump *dumpptr = (Dump *) arg;
   double *bufsort = dumpptr->bufsort;
   int size_one = dumpptr->size_one;
   int sortcolm1 = dumpptr->sortcolm1;

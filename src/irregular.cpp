@@ -24,11 +24,9 @@
 
 using namespace LAMMPS_NS;
 
-// allocate space for static class variable
 // prototype for non-class function
 
-int *Irregular::proc_recv_copy;
-int compare_standalone(const void *, const void *);
+int compare_standalone(const void *, const void *, void *);
 
 enum{LAYOUT_UNIFORM,LAYOUT_NONUNIFORM,LAYOUT_TILED};    // several files
 
@@ -437,8 +435,7 @@ int Irregular::create_atom(int n, int *sizes, int *proclist, int sortflag)
     int *length_recv_ordered = new int[nrecv_proc];
 
     for (i = 0; i < nrecv_proc; i++) order[i] = i;
-    proc_recv_copy = proc_recv;
-    qsort(order,nrecv_proc,sizeof(int),compare_standalone);
+    qsort_r(order,nrecv_proc,sizeof(int),compare_standalone,proc_recv);
 
     int j;
     for (i = 0; i < nrecv_proc; i++) {
@@ -466,14 +463,13 @@ int Irregular::create_atom(int n, int *sizes, int *proclist, int sortflag)
 
 /* ----------------------------------------------------------------------
    comparison function invoked by qsort()
-   accesses static class member proc_recv_copy, set before call to qsort()
 ------------------------------------------------------------------------- */
 
-int compare_standalone(const void *iptr, const void *jptr)
+int compare_standalone(const void *iptr, const void *jptr, void *arg)
 {
   int i = *((int *) iptr);
   int j = *((int *) jptr);
-  int *proc_recv = Irregular::proc_recv_copy;
+  int *proc_recv = (int *) arg;
   if (proc_recv[i] < proc_recv[j]) return -1;
   if (proc_recv[i] > proc_recv[j]) return 1;
   return 0;
@@ -683,8 +679,7 @@ int Irregular::create_data(int n, int *proclist, int sortflag)
     int *num_recv_ordered = new int[nrecv_proc];
 
     for (i = 0; i < nrecv_proc; i++) order[i] = i;
-    proc_recv_copy = proc_recv;
-    qsort(order,nrecv_proc,sizeof(int),compare_standalone);
+    qsort_r(order,nrecv_proc,sizeof(int),compare_standalone,proc_recv);
 
     int j;
     for (i = 0; i < nrecv_proc; i++) {
