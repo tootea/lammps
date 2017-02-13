@@ -43,7 +43,7 @@ FixReaxCBondcheck::FixReaxCBondcheck(LAMMPS *lmp, int narg, char **arg) :
   nevery = atoi(arg[3]);
   threshold = atof(arg[4]);
 
-  if (nevery <= 0 || threshold <= 0.0)
+  if (nevery <= 0 || threshold < 0.0)
     error->all(FLERR,"Illegal fix reax/c/bondcheck command");
 
 }
@@ -85,12 +85,16 @@ void FixReaxCBondcheck::init()
 
 void FixReaxCBondcheck::end_of_step()
 {
-  int changed, changed_local;
+  int numbonds, numbonds_local;
 
-  changed_local = CheckBonds();
-  MPI_Allreduce(&changed_local, &changed, 1, MPI_INT, MPI_LOR, world);
-  if (changed) {
-      update->breakflag = 1;
+  numbonds_local = CheckBonds();
+  MPI_Allreduce(&numbonds_local, &numbonds, 1, MPI_INT, MPI_SUM, world);
+  if (numbonds != 2 * refbonds.size()) {
+    char str[128];
+    sprintf(str, "step %ld: %lu bonds expected, %d bonds found",
+            update->ntimestep, refbonds.size(), numbonds / 2);
+    error->message(FLERR, str);
+    update->breakflag = 1;
   }
 }
 
@@ -181,12 +185,13 @@ int FixReaxCBondcheck::FindBonds(int *&ibuf, double *&dbuf)
 
 int FixReaxCBondcheck::CheckBonds(void)
 {
-  int *ilist, i, ii, inum, pj;
-  double bo_tmp;
+  int *ilist, i, ii, inum, pj, numbonds = 0;
+  double bo_tmp, bo_ref, bo_cut;
 
   inum = reaxc->list->inum;
   ilist = reaxc->list->ilist;
   bond_data *bo_ij;
+  bo_cut = reaxc->control->bg_cut;
 
   for (ii = 0; ii < inum; ii++) {
     i = ilist[ii];
@@ -200,17 +205,22 @@ int FixReaxCBondcheck::CheckBonds(void)
           std::swap(key.first, key.second);
       }
       BondMap::const_iterator ref = refbonds.find(key);
-      double bo_ref = (ref == refbonds.end()) ? 0.0 : ref->second;
+      if (ref != refbonds.end()) {
+        bo_ref = ref->second;
+        numbonds++;
+      } else {
+        bo_ref = 0.0;
+      }
 
-      if (fabs(bo_tmp - bo_ref) >= threshold) {
+      if ((threshold && fabs(bo_tmp - bo_ref) >= threshold) || (!threshold && ((bo_ref != 0.0) ^ (bo_tmp >= bo_cut)))) {
         char str[128];
-        sprintf(str, "%d-%d bond order changed from %f to %f\n", key.first, key.second, bo_ref, bo_tmp);
+        sprintf(str, "%d-%d bond order changed from %f to %f", key.first, key.second, bo_ref, bo_tmp);
         error->message(FLERR, str);
-        return 1;
+        return 0;
       }
     }
   }
-  return 0;
+  return numbonds;
 }
 
 /* ---------------------------------------------------------------------- */
